@@ -2,6 +2,8 @@
 
 A cross-platform desktop note-taking app that delivers Obsidian's local-first markdown editing experience while treating a GitHub repository as the authoritative vault — seamless multi-device sync via native git, no subscription, no proprietary sync service, every note a plain `.md` file you own entirely.
 
+Each vault maps 1:1 to a GitHub repository. Switch between as many independent vaults as you like from the built-in Vault Manager, all backed by your own GitHub account.
+
 ---
 
 ## Features (planned)
@@ -9,7 +11,8 @@ A cross-platform desktop note-taking app that delivers Obsidian's local-first ma
 | Feature | Phase | Status |
 |---|---|---|
 | Electron scaffold + CI/CD | 0 | ✅ Done |
-| Vault management + file tree | 1 | 🔲 Next |
+| Vault Manager (multi-vault, switch, filter, delete) | 1 | 🔲 Next |
+| File tree + SQLite index | 1 | 🔲 Next |
 | Monaco editor + markdown preview | 2 | 🔲 Planned |
 | GitHub auth (Device Flow) + git sync | 3 | 🔲 Planned |
 | Full-text search + quick switcher | 4 | 🔲 Planned |
@@ -30,7 +33,7 @@ A cross-platform desktop note-taking app that delivers Obsidian's local-first ma
 | Git | isomorphic-git |
 | Auth | GitHub Device Flow + safeStorage |
 | State | Zustand |
-| Styling | Tailwind CSS 3 |
+| Styling | Tailwind CSS 3 (Catppuccin Mocha/Latte) |
 | Config | electron-store |
 | Search | better-sqlite3 (FTS5) |
 | File watching | chokidar |
@@ -89,20 +92,23 @@ npm run format       # Prettier
 │                   ELECTRON SHELL                     │
 │  ┌──────────────────────────────────────────────┐   │
 │  │            MAIN PROCESS (Node.js)            │   │
-│  │  VaultService · GitService · AuthService     │   │
-│  │  SearchService · ImageService · SyncService  │   │
+│  │  VaultService · VaultRegistry · GitService   │   │
+│  │  AuthService · SearchService · ImageService  │   │
+│  │  SyncService · IndexService (SQLite/FTS5)    │   │
 │  │         IPC Bridge (domain:verb channels)    │   │
 │  └──────────────────┬───────────────────────────┘   │
 │       contextBridge │ window.api (preload.ts)        │
 │  ┌──────────────────▼───────────────────────────┐   │
 │  │         RENDERER PROCESS (React 18)          │   │
-│  │  FileTree · MonacoEditor · MarkdownPreview   │   │
-│  │  Graph · Search · Sync · CommandPalette      │   │
+│  │  VaultManager · FileTree · MonacoEditor      │   │
+│  │  MarkdownPreview · Graph · Search · Sync     │   │
+│  │  CommandPalette · Settings                   │   │
 │  │              Zustand global state            │   │
 │  └──────────────────────────────────────────────┘   │
 │                                                      │
-│  PERSISTENCE: electron-store · SQLite · vault .md   │
-│               files · GitHub remote                  │
+│  PERSISTENCE: electron-store (global vault registry) │
+│               SQLite (per-vault index)               │
+│               vault .md files · GitHub remote        │
 └──────────────────────────────────────────────────────┘
 ```
 
@@ -113,9 +119,28 @@ npm run format       # Prettier
 
 ---
 
+## Multi-Vault Management
+
+MindPalace supports any number of independent vaults. Open the Vault Manager with `Ctrl+Shift+V`.
+
+- Each vault's display name determines its GitHub repository name (slug, immutable after creation)
+- Filter vaults by name or label; sort by last opened, name, or note count
+- Pin frequently-used vaults to the top
+- Switch vaults instantly — the file tree and editor reset to the selected vault
+
+### Vault deletion
+
+Deletion requires deliberate confirmation:
+
+1. You must **type the vault's exact name** into a confirmation field
+2. A final warning appears before anything is deleted
+3. Optionally delete the GitHub repository at the same time (requires `delete_repo` OAuth scope — irreversible, destroys all git history)
+
+---
+
 ## Vault Storage
 
-Notes are plain `.md` files in a folder you choose. A GitHub repo acts as the remote — push/pull happens automatically on save (configurable). No account, no cloud service beyond your own GitHub repo.
+Notes are plain `.md` files in a folder you choose. A GitHub repo acts as the remote — push/pull happens automatically on save (configurable).
 
 ```
 <vault-root>/

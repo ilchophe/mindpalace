@@ -1,18 +1,22 @@
 // Shared types used across main, preload, and renderer processes.
 // Keep this file free of Node.js or browser-only imports.
 
+// ---------------------------------------------------------------------------
+// Vault
+// ---------------------------------------------------------------------------
+
 export interface VaultConfig {
-  id: string
-  name: string
-  localPath: string
-  githubRepo: string | null
-  githubBranch: string
+  id: string                    // UUID — stable identity across renames
+  name: string                  // display name; slugified form == GitHub repo name
+  localPath: string             // absolute path, main process only
+  githubRepo: string | null     // "owner/repo" e.g. "ilchophe/my-vault"
+  githubBranch: string          // default: "main"
   imageStorageMode: 'same-folder' | 'subfolder' | 'global'
-  imageSubfolderName: string
-  globalImagePath: string
+  imageSubfolderName: string    // default: "images"
+  globalImagePath: string       // relative to vault root e.g. "assets/images"
   syncOnOpen: boolean
   syncOnSave: boolean
-  syncIntervalMinutes: number
+  syncIntervalMinutes: number   // 0 = disabled
   dailyNotesFolder: string
   dailyNoteTemplate: string
   defaultEditorView: 'edit' | 'split' | 'preview'
@@ -20,19 +24,65 @@ export interface VaultConfig {
   customCSSPath: string | null
 }
 
+/** Lightweight row kept in the global VaultRegistry. */
+export interface VaultSummary {
+  id: string                    // same UUID as VaultConfig.id
+  name: string                  // display name
+  slug: string                  // URL-safe repo name derived from name (immutable after creation)
+  localPath: string
+  githubRepo: string | null     // "owner/repo"
+  lastOpenedAt: string | null   // ISO-8601
+  noteCount: number             // cached on vault open/close
+  createdAt: string             // ISO-8601
+  isPinned: boolean
+  labels: string[]              // user-defined labels e.g. ["work", "personal"]
+  syncStatus: VaultSyncStatus
+}
+
+export type VaultSyncStatus =
+  | 'idle'
+  | 'pulling'
+  | 'pushing'
+  | 'conflict'
+  | 'error'
+  | 'disconnected'
+
+/** Global registry stored in electron-store. Main process only. */
+export interface VaultRegistry {
+  vaults: VaultSummary[]
+  activeVaultId: string | null
+}
+
+/** Payload for the vault:delete IPC channel. */
+export interface VaultDeletePayload {
+  vaultId: string
+  /** Must equal VaultSummary.name exactly — validated in main process too. */
+  confirmation: string
+  /** If true, also calls GitHub DELETE /repos/{owner}/{repo}. Requires delete_repo scope. */
+  deleteRemote: boolean
+}
+
+// ---------------------------------------------------------------------------
+// Notes
+// ---------------------------------------------------------------------------
+
 export interface NoteMetadata {
-  id: string
+  id: string             // sha256 of relative path
   relativePath: string
   title: string
   tags: string[]
   aliases: string[]
   frontmatter: Record<string, unknown>
-  outlinks: string[]
-  inlinks: string[]
+  outlinks: string[]     // wiki-links this note points to
+  inlinks: string[]      // backlinks
   wordCount: number
   createdAt: string
   modifiedAt: string
 }
+
+// ---------------------------------------------------------------------------
+// Sync / Git
+// ---------------------------------------------------------------------------
 
 export interface SyncState {
   lastPullSHA: string | null
@@ -49,6 +99,10 @@ export interface ConflictEntry {
   theirs: string
 }
 
+// ---------------------------------------------------------------------------
+// Search
+// ---------------------------------------------------------------------------
+
 export interface SearchResult {
   id: string
   relativePath: string
@@ -57,56 +111,76 @@ export interface SearchResult {
   score: number
 }
 
-// IPC channel names — keeps renderer and main in sync
+// ---------------------------------------------------------------------------
+// IPC channel constants — keeps renderer and main in sync
+// ---------------------------------------------------------------------------
+
 export const IPC = {
   AUTH: {
     START_DEVICE_FLOW: 'auth:startDeviceFlow',
-    POLL_DEVICE_AUTH: 'auth:pollDeviceAuth',
-    GET_STATUS: 'auth:getAuthStatus',
-    LOGOUT: 'auth:logout'
+    POLL_DEVICE_AUTH:  'auth:pollDeviceAuth',
+    GET_STATUS:        'auth:getAuthStatus',
+    LOGOUT:            'auth:logout'
   },
+
   VAULT: {
-    OPEN: 'vault:open',
-    CLONE: 'vault:clone',
-    CREATE: 'vault:create',
-    GET_CONFIG: 'vault:getConfig',
+    // Single-vault lifecycle
+    OPEN:          'vault:open',
+    CLONE:         'vault:clone',
+    CREATE:        'vault:create',
+    GET_CONFIG:    'vault:getConfig',
     UPDATE_CONFIG: 'vault:updateConfig',
-    LIST_RECENT: 'vault:listRecent',
-    CLOSE: 'vault:close',
-    FILE_CHANGED: 'vault:file-changed',
-    FILE_CREATED: 'vault:file-created',
-    FILE_DELETED: 'vault:file-deleted'
+    CLOSE:         'vault:close',
+
+    // Multi-vault registry
+    LIST:          'vault:list',       // → VaultSummary[]
+    SWITCH:        'vault:switch',     // (vaultId) → VaultConfig
+    GET_ACTIVE:    'vault:getActive',  // → VaultSummary | null
+    PIN:           'vault:pin',        // (vaultId, pinned: boolean)
+    UPDATE_LABELS: 'vault:updateLabels', // (vaultId, labels: string[])
+    DELETE:        'vault:delete',     // (VaultDeletePayload) → { success } | { error }
+
+    // Push events (main → renderer)
+    FILE_CHANGED:      'vault:file-changed',
+    FILE_CREATED:      'vault:file-created',
+    FILE_DELETED:      'vault:file-deleted',
+    REGISTRY_CHANGED:  'vault:registry-changed' // fires after any registry mutation
   },
+
   NOTES: {
-    LIST: 'notes:list',
-    READ: 'notes:read',
-    WRITE: 'notes:write',
-    RENAME: 'notes:rename',
-    DELETE: 'notes:delete',
-    CREATE_FOLDER: 'notes:createFolder',
-    GET_BACKLINKS: 'notes:getBacklinks',
+    LIST:              'notes:list',
+    READ:              'notes:read',
+    WRITE:             'notes:write',
+    RENAME:            'notes:rename',
+    DELETE:            'notes:delete',
+    CREATE_FOLDER:     'notes:createFolder',
+    GET_BACKLINKS:     'notes:getBacklinks',
     RESOLVE_WIKI_LINK: 'notes:resolveWikiLink'
   },
+
   SEARCH: {
-    QUERY: 'search:query',
+    QUERY:   'search:query',
     REINDEX: 'search:reindexVault'
   },
+
   GIT: {
-    STATUS: 'git:status',
-    PULL: 'git:pull',
-    COMMIT: 'git:commit',
-    PUSH: 'git:push',
-    SYNC: 'git:sync',
+    STATUS:           'git:status',
+    PULL:             'git:pull',
+    COMMIT:           'git:commit',
+    PUSH:             'git:push',
+    SYNC:             'git:sync',
     RESOLVE_CONFLICT: 'git:resolveConflict',
-    GET_LOG: 'git:getLog',
-    GET_DIFF: 'git:getDiff',
-    SYNC_STATUS: 'git:sync-status',
-    CONFLICT_DETECTED: 'git:conflict-detected'
+    GET_LOG:          'git:getLog',
+    GET_DIFF:         'git:getDiff',
+    // Push events
+    SYNC_STATUS:      'git:sync-status',
+    CONFLICT_DETECTED:'git:conflict-detected'
   },
+
   IMAGES: {
-    PASTE: 'images:paste',
-    IMPORT_FILE: 'images:importFile',
+    PASTE:         'images:paste',
+    IMPORT_FILE:   'images:importFile',
     REWRITE_PATHS: 'images:rewritePaths',
-    GET_MODE: 'images:getMode'
+    GET_MODE:      'images:getMode'
   }
 } as const
