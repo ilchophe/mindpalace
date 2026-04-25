@@ -43,7 +43,7 @@ linux:
 
 publish:
   provider: github
-  owner: placeholder-owner
+  owner: ilchophe
   repo: mindpalace
 
 nsis:
