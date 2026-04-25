@@ -105,10 +105,7 @@ export function registerNotesHandlers(): void {
   })
 
   ipcMain.handle(IPC.NOTES.GET_BACKLINKS, (_e, relPath: string) => {
-    if (indexService.enabled) {
-      const meta = indexService.getByRelPath(relPath)
-      return meta?.inlinks ?? []
-    }
+    if (indexService.enabled) return indexService.getBacklinks(relPath)
     return []
   })
 

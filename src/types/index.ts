@@ -263,8 +263,10 @@ export const IPC = {
   },
 
   SEARCH: {
-    QUERY:   'search:query',
-    REINDEX: 'search:reindexVault'
+    QUERY:         'search:query',
+    REINDEX:       'search:reindexVault',
+    GET_ALL_TAGS:  'search:getAllTags',
+    GET_BACKLINKS: 'search:getBacklinks'
   },
 
   GIT: {

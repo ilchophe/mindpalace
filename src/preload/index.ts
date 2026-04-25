@@ -85,7 +85,12 @@ const api = {
     }
   },
 
-  search: {},
+  search: {
+    query: (q: string) => ipcRenderer.invoke(IPC.SEARCH.QUERY, q),
+    reindexVault: () => ipcRenderer.invoke(IPC.SEARCH.REINDEX),
+    getAllTags: () => ipcRenderer.invoke(IPC.SEARCH.GET_ALL_TAGS),
+    getBacklinks: (relPath: string) => ipcRenderer.invoke(IPC.SEARCH.GET_BACKLINKS, relPath)
+  },
   images: {}
 }
 

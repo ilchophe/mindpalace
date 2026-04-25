@@ -4,6 +4,7 @@ import TabBar from './TabBar'
 import MonacoEditor from './MonacoEditor'
 import MarkdownPreview from './MarkdownPreview'
 import PropertiesPanel from './PropertiesPanel'
+import BacklinksPanel from '../Search/BacklinksPanel'
 
 const VIEW_MODES: { key: ViewMode; label: string }[] = [
   { key: 'edit', label: 'Edit' },
@@ -72,6 +73,7 @@ export default function EditorPane(): React.JSX.Element {
       </div>
 
       {hasActiveTab && <PropertiesPanel />}
+      {hasActiveTab && <BacklinksPanel />}
     </div>
   )
 }

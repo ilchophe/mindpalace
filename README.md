@@ -15,7 +15,7 @@ Each vault maps 1:1 to a GitHub repository. Switch between as many independent v
 | File tree + SQLite index | 1 | ✅ Done |
 | Monaco editor + markdown preview | 2 | ✅ Done |
 | GitHub auth (Device Flow) + git sync | 3 | ✅ Done |
-| Full-text search + quick switcher | 4 | 🔲 Next |
+| Full-text search + quick switcher | 4 | ✅ Done |
 | Image handling + graph view + daily notes | 5 | 🔲 Planned |
 | Command palette + settings + packaging | 6 | 🔲 Planned |
 
@@ -163,6 +163,17 @@ Notes are plain `.md` files in a folder you choose. A GitHub repo acts as the re
 ---
 
 ## Phase Log
+
+### Phase 4 — Full-text Search & Quick Switcher ✅
+- `IndexService` — added `body_text` column with schema migration; `extractOutlinks()` parses `[[wiki-links]]`; FTS5 virtual table now indexes title + tags + body
+- `search()` — FTS5 prefix queries (`word*`) with BM25 ranking; `snippet()` highlights matched body text with `<mark>` tags
+- `getBacklinks()` — SQL `json_each(outlinks)` query finds all notes linking to a given path or stem
+- `getAllTags()` — SQL `json_each(tags)` aggregates all unique tags vault-wide
+- `SearchService` — thin wrapper; `reindexVault()` re-walks all `.md` files for full rebuild
+- `search IPC handlers` — `search:query`, `search:reindexVault`, `search:getAllTags`, `search:getBacklinks`
+- `QuickSwitcher` — `Ctrl+P` modal; empty query shows 20 recently modified notes; debounced FTS search at 150ms; keyboard navigation (↑↓ / Enter / Esc)
+- `BacklinksPanel` — collapsible panel below PropertiesPanel; lists notes linking to the active note; click to open
+- `notes:getBacklinks` IPC — updated to use outlinks-based query instead of stale `inlinks` array
 
 ### Phase 3 — GitHub Auth & Git Sync ✅
 - `AuthService` — GitHub Device Flow: request code → display → poll → safeStorage token encryption

@@ -12,7 +12,8 @@ import type {
   GitHubRepo,
   SyncStatusPayload,
   ConnectRemotePayload,
-  CloneVaultPayload
+  CloneVaultPayload,
+  SearchResult
 } from '../../types'
 
 declare global {
@@ -65,7 +66,12 @@ declare global {
         onSyncStatus: (cb: (payload: SyncStatusPayload) => void) => () => void
         onConflictDetected: (cb: (conflicts: string[]) => void) => () => void
       }
-      search: Record<string, never>
+      search: {
+        query: (q: string) => Promise<SearchResult[]>
+        reindexVault: () => Promise<void>
+        getAllTags: () => Promise<string[]>
+        getBacklinks: (relPath: string) => Promise<string[]>
+      }
       images: Record<string, never>
     }
   }

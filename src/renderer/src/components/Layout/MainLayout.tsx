@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useVaultStore } from '../../stores/vaultStore'
 import { useSyncStore } from '../../stores/syncStore'
 import FileTree from '../Sidebar/FileTree'
@@ -7,14 +7,17 @@ import EditorPane from '../Editor/EditorPane'
 import SyncPanel from '../Sync/SyncPanel'
 import ConnectGitHubModal from '../Auth/ConnectGitHubModal'
 import ConflictModal from '../Sync/ConflictModal'
+import QuickSwitcher from '../Search/QuickSwitcher'
 
 export default function MainLayout(): React.JSX.Element {
   const { isManagerOpen, openManager, activeVault } = useVaultStore()
   const { isConnectModalOpen, isConflictModalOpen } = useSyncStore()
+  const [isQuickSwitcherOpen, setIsQuickSwitcherOpen] = useState(false)
 
   useEffect(() => {
     function onKey(e: KeyboardEvent): void {
-      if (e.ctrlKey && e.shiftKey && e.key === 'V') openManager()
+      if (e.ctrlKey && e.shiftKey && e.key === 'V') { openManager(); return }
+      if (e.ctrlKey && !e.shiftKey && e.key === 'p') { e.preventDefault(); setIsQuickSwitcherOpen(true) }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
@@ -47,6 +50,7 @@ export default function MainLayout(): React.JSX.Element {
       {isManagerOpen && <VaultManagerScreen />}
       {isConnectModalOpen && <ConnectGitHubModal />}
       {isConflictModalOpen && <ConflictModal />}
+      {isQuickSwitcherOpen && <QuickSwitcher onClose={() => setIsQuickSwitcherOpen(false)} />}
     </div>
   )
 }
