@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import type { NoteMetadata } from '@shared'
 import { useVaultStore } from '../../stores/vaultStore'
 import { useEditorStore } from '../../stores/editorStore'
@@ -31,7 +31,6 @@ function buildTree(notes: NoteMetadata[]): TreeNode[] {
     }
   }
 
-  // Sort: folders first, then files, both alphabetically
   function sortNodes(nodes: TreeNode[]): TreeNode[] {
     return nodes
       .sort((a, b) => {
@@ -102,23 +101,77 @@ export default function FileTree(): React.JSX.Element {
   const { notes, selectedNote, setSelectedNote, loadNotes, activeConfig } = useVaultStore()
   const openTab = useEditorStore((s) => s.openTab)
   const [search, setSearch] = useState('')
+  const [creating, setCreating] = useState<'note' | 'folder' | null>(null)
+  const [newName, setNewName] = useState('')
+  const newNameRef = useRef<HTMLInputElement>(null)
 
-  function handleNoteSelect(note: NoteMetadata): void {
-    setSelectedNote(note)
-    openTab(note)
-  }
+  useEffect(() => {
+    if (creating) newNameRef.current?.focus()
+  }, [creating])
 
   useEffect(() => {
     if (activeConfig) loadNotes()
   }, [activeConfig]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Subscribe to file-system events
   useEffect(() => {
     const off1 = window.api.vault.onFileCreated(() => loadNotes())
     const off2 = window.api.vault.onFileDeleted(() => loadNotes())
     const off3 = window.api.vault.onFileChanged(() => loadNotes())
     return () => { off1(); off2(); off3() }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  function handleNoteSelect(note: NoteMetadata): void {
+    setSelectedNote(note)
+    openTab(note)
+  }
+
+  // Place new items inside the selected note's folder, or at vault root
+  function getCreateParent(): string {
+    if (!selectedNote) return ''
+    const parts = selectedNote.relativePath.split('/')
+    return parts.length > 1 ? parts.slice(0, -1).join('/') : ''
+  }
+
+  function startCreating(type: 'note' | 'folder'): void {
+    setNewName('')
+    setCreating(type)
+  }
+
+  async function handleCreate(e: React.FormEvent): Promise<void> {
+    e.preventDefault()
+    const trimmed = newName.trim()
+    if (!trimmed) {
+      setCreating(null)
+      return
+    }
+    const parent = getCreateParent()
+    const relPath = parent ? `${parent}/${trimmed}` : trimmed
+
+    try {
+      if (creating === 'note') {
+        const notePath = relPath.endsWith('.md') ? relPath : `${relPath}.md`
+        await window.api.notes.write(notePath, '')
+        await loadNotes()
+        const newNote = useVaultStore.getState().notes.find((n) => n.relativePath === notePath)
+        if (newNote) {
+          setSelectedNote(newNote)
+          openTab(newNote)
+        }
+      } else {
+        await window.api.notes.createFolder(relPath)
+        await loadNotes()
+      }
+    } catch (err) {
+      console.error('Failed to create:', err)
+    }
+    setCreating(null)
+    setNewName('')
+  }
+
+  function cancelCreate(): void {
+    setCreating(null)
+    setNewName('')
+  }
 
   const filtered = useMemo(() => {
     if (!search.trim()) return notes
@@ -128,6 +181,8 @@ export default function FileTree(): React.JSX.Element {
 
   const tree = useMemo(() => buildTree(filtered), [filtered])
 
+  const createParent = getCreateParent()
+
   return (
     <div className="flex flex-col h-full select-none">
       {/* Header */}
@@ -135,8 +190,61 @@ export default function FileTree(): React.JSX.Element {
         <span className="text-xs font-semibold text-vault-muted uppercase tracking-wider">
           {activeConfig?.name ?? 'Vault'}
         </span>
-        <span className="text-xs text-vault-muted">{notes.length}</span>
+        <div className="flex items-center gap-1">
+          <span className="text-xs text-vault-muted mr-1">{notes.length}</span>
+          {activeConfig && (
+            <>
+              <button
+                onClick={() => startCreating('note')}
+                title="New note"
+                className="text-vault-muted hover:text-vault-text hover:bg-vault-border/40 rounded px-1 py-0.5 text-xs transition-colors"
+              >
+                📄+
+              </button>
+              <button
+                onClick={() => startCreating('folder')}
+                title="New folder"
+                className="text-vault-muted hover:text-vault-text hover:bg-vault-border/40 rounded px-1 py-0.5 text-xs transition-colors"
+              >
+                📁+
+              </button>
+            </>
+          )}
+        </div>
       </div>
+
+      {/* Inline create input */}
+      {creating && (
+        <div className="px-2 py-1.5 border-b border-vault-border bg-vault-surface/50">
+          <div className="text-xs text-vault-muted mb-1">
+            {creating === 'note' ? 'New note' : 'New folder'}
+            {createParent ? ` in ${createParent}/` : ' in vault root'}
+          </div>
+          <form onSubmit={handleCreate} className="flex gap-1">
+            <input
+              ref={newNameRef}
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              onKeyDown={(e) => e.key === 'Escape' && cancelCreate()}
+              placeholder={creating === 'note' ? 'note-name.md' : 'folder-name'}
+              className="flex-1 rounded border border-vault-accent bg-vault-bg px-2 py-1 text-xs text-vault-text outline-none placeholder:text-vault-muted"
+            />
+            <button
+              type="submit"
+              className="rounded bg-vault-accent/20 hover:bg-vault-accent/30 px-2 py-1 text-xs text-vault-accent transition-colors"
+            >
+              ✓
+            </button>
+            <button
+              type="button"
+              onClick={cancelCreate}
+              className="rounded hover:bg-vault-border/40 px-2 py-1 text-xs text-vault-muted transition-colors"
+            >
+              ✕
+            </button>
+          </form>
+        </div>
+      )}
 
       {/* Search */}
       <div className="px-2 py-1.5">

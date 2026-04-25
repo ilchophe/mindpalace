@@ -12,7 +12,7 @@ Each vault maps 1:1 to a GitHub repository. Switch between as many independent v
 |---|---|---|
 | Electron scaffold + CI/CD | 0 | ✅ Done |
 | Vault Manager (multi-vault, switch, filter, delete) | 1 | ✅ Done |
-| File tree + SQLite index | 1 | ✅ Done |
+| File tree + SQLite index + note/folder creation | 1 | ✅ Done |
 | Monaco editor + markdown preview | 2 | ✅ Done |
 | GitHub auth (Device Flow) + git sync | 3 | ✅ Done |
 | Full-text search + quick switcher | 4 | ✅ Done |
@@ -228,7 +228,7 @@ Notes are plain `.md` files in a folder you choose. A GitHub repo acts as the re
 - `VaultManagerScreen` — full-screen overlay: vault card grid, filter/label/sort, new vault form, open existing
 - `VaultCard` — sync status badge, pin, context menu
 - `DeleteVaultModal` — typed confirmation + 3-second hold-to-confirm final step; optional GitHub repo deletion
-- `FileTree` — recursive tree with folder collapse, filter, live watcher updates
+- `FileTree` — recursive tree with folder collapse, filter, live watcher updates; `📄+` / `📁+` header buttons create a note or folder inside the selected note's parent (or vault root); inline name input with Enter/Escape
 - `vault:switch` IPC — tears down watcher + SQLite, re-opens new vault
 - `better-sqlite3` + `electron-rebuild` added; `@shared` alias exposed in both tsconfigs
 
