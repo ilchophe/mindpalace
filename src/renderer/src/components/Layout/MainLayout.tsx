@@ -14,6 +14,10 @@ import DailyNoteButton from '../DailyNotes/DailyNoteButton'
 import CommandPalette from '../CommandPalette/CommandPalette'
 import SettingsPanel from '../Settings/SettingsPanel'
 
+const SIDEBAR_MIN = 160
+const SIDEBAR_MAX = 520
+const SIDEBAR_DEFAULT = 224
+
 export default function MainLayout(): React.JSX.Element {
   const { isManagerOpen, openManager, activeVault } = useVaultStore()
   const { isConnectModalOpen, isConflictModalOpen } = useSyncStore()
@@ -23,8 +27,32 @@ export default function MainLayout(): React.JSX.Element {
     isCommandPaletteOpen, openCommandPalette, closeCommandPalette,
   } = useUIStore()
 
-  // QuickSwitcher (Ctrl+P) lives in local state since it's a separate concept from command palette
   const [isQuickSwitcherOpen, setIsQuickSwitcherOpen] = React.useState(false)
+  const [sidebarWidth, setSidebarWidth] = React.useState(SIDEBAR_DEFAULT)
+  const isResizing = React.useRef(false)
+
+  function onResizeStart(e: React.MouseEvent): void {
+    e.preventDefault()
+    isResizing.current = true
+
+    function onMouseMove(ev: MouseEvent): void {
+      if (!isResizing.current) return
+      setSidebarWidth(Math.max(SIDEBAR_MIN, Math.min(SIDEBAR_MAX, ev.clientX)))
+    }
+
+    function onMouseUp(): void {
+      isResizing.current = false
+      document.removeEventListener('mousemove', onMouseMove)
+      document.removeEventListener('mouseup', onMouseUp)
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+    }
+
+    document.body.style.cursor = 'col-resize'
+    document.body.style.userSelect = 'none'
+    document.addEventListener('mousemove', onMouseMove)
+    document.addEventListener('mouseup', onMouseUp)
+  }
 
   useEffect(() => {
     function onKey(e: KeyboardEvent): void {
@@ -42,7 +70,10 @@ export default function MainLayout(): React.JSX.Element {
   return (
     <div className="flex h-screen w-screen bg-vault-bg text-vault-text overflow-hidden">
       {/* Sidebar */}
-      <aside className="w-56 flex-shrink-0 border-r border-vault-border flex flex-col bg-vault-surface">
+      <aside
+        className="relative flex-shrink-0 border-r border-vault-border flex flex-col bg-vault-surface"
+        style={{ width: sidebarWidth }}
+      >
         <button
           className="flex items-center gap-2 px-3 py-2 border-b border-vault-border hover:bg-vault-border/40 transition-colors text-sm text-vault-text flex-shrink-0"
           onClick={openManager}
@@ -81,6 +112,14 @@ export default function MainLayout(): React.JSX.Element {
         )}
 
         <SyncPanel />
+
+        {/* Drag-to-resize handle */}
+        <div
+          className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize group z-10"
+          onMouseDown={onResizeStart}
+        >
+          <div className="absolute inset-y-0 right-0 w-[3px] group-hover:bg-vault-accent/40 transition-colors" />
+        </div>
       </aside>
 
       {/* Editor area */}
