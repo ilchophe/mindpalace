@@ -1,8 +1,10 @@
 module.exports = {
   extends: [
     '@electron-toolkit/eslint-config-ts/recommended',
-    '@electron-toolkit/eslint-config-prettier'
+    '@electron-toolkit/eslint-config-prettier',
+    'plugin:react-hooks/recommended'
   ],
+  plugins: ['react-hooks'],
   rules: {
     '@typescript-eslint/no-explicit-any': 'warn',
     '@typescript-eslint/explicit-function-return-type': 'off',
