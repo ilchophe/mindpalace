@@ -11,24 +11,39 @@ interface TreeNode {
   note?: NoteMetadata
 }
 
-function buildTree(notes: NoteMetadata[]): TreeNode[] {
+function buildTree(notes: NoteMetadata[], emptyFolders: string[]): TreeNode[] {
   const root: TreeNode = { name: '', path: '', isFolder: true, children: [] }
 
-  for (const note of notes) {
-    const parts = note.relativePath.split('/')
+  function ensurePath(parts: string[]): TreeNode {
     let node = root
     for (let i = 0; i < parts.length; i++) {
       const name = parts[i]
-      const isLast = i === parts.length - 1
+      const path = parts.slice(0, i + 1).join('/')
       let child = node.children.find((c) => c.name === name)
       if (!child) {
-        const path = parts.slice(0, i + 1).join('/')
-        child = { name, path, isFolder: !isLast, children: [] }
-        if (isLast) child.note = note
+        child = { name, path, isFolder: true, children: [] }
         node.children.push(child)
       }
       node = child
     }
+    return node
+  }
+
+  for (const note of notes) {
+    const parts = note.relativePath.split('/')
+    const parentParts = parts.slice(0, -1)
+    const parentNode = parentParts.length ? ensurePath(parentParts) : root
+    const name = parts[parts.length - 1]
+    const existing = parentNode.children.find((c) => c.name === name)
+    if (!existing) {
+      parentNode.children.push({ name, path: note.relativePath, isFolder: false, children: [], note })
+    }
+  }
+
+  // Ensure explicitly created empty folders exist in the tree
+  for (const folderPath of emptyFolders) {
+    const parts = folderPath.split('/').filter(Boolean)
+    if (parts.length) ensurePath(parts)
   }
 
   function sortNodes(nodes: TreeNode[]): TreeNode[] {
@@ -53,18 +68,22 @@ interface TreeItemProps {
 function TreeItem({ node, depth, selectedPath, onSelect }: TreeItemProps): React.JSX.Element {
   const [open, setOpen] = useState(true)
   const isSelected = !node.isFolder && selectedPath === node.path
-  const indent = depth * 12
+  const indent = depth * 16
 
   if (node.isFolder) {
     return (
       <div>
         <button
-          style={{ paddingLeft: `${indent + 8}px` }}
-          className="flex items-center gap-1.5 w-full py-0.5 pr-2 text-left text-sm text-vault-muted hover:text-vault-text hover:bg-vault-surface/50 rounded transition-colors"
+          style={{ paddingLeft: `${indent + 6}px` }}
+          className="flex items-center gap-1 w-full py-[3px] pr-2 text-left text-sm text-vault-muted hover:text-vault-text hover:bg-vault-border/30 rounded transition-colors"
           onClick={() => setOpen((o) => !o)}
         >
-          <span className="text-xs">{open ? '▾' : '▸'}</span>
-          <span className="text-vault-muted">📁</span>
+          <span
+            className="text-[10px] text-vault-muted/70 transition-transform duration-100 inline-block"
+            style={{ transform: open ? 'rotate(90deg)' : 'rotate(0deg)' }}
+          >
+            ›
+          </span>
           <span className="truncate">{node.name}</span>
         </button>
         {open && node.children.map((child) => (
@@ -82,16 +101,15 @@ function TreeItem({ node, depth, selectedPath, onSelect }: TreeItemProps): React
 
   return (
     <button
-      style={{ paddingLeft: `${indent + 8}px` }}
+      style={{ paddingLeft: `${indent + 18}px` }}
       className={[
-        'flex items-center gap-1.5 w-full py-0.5 pr-2 text-left text-sm rounded transition-colors',
+        'flex items-center w-full py-[3px] pr-2 text-left text-sm rounded transition-colors',
         isSelected
           ? 'bg-vault-accent/20 text-vault-accent'
-          : 'text-vault-text hover:bg-vault-surface/50'
+          : 'text-vault-text hover:bg-vault-border/30'
       ].join(' ')}
       onClick={() => node.note && onSelect(node.note)}
     >
-      <span className="text-vault-muted text-xs">📄</span>
       <span className="truncate">{node.name.replace(/\.md$/, '')}</span>
     </button>
   )
@@ -104,6 +122,8 @@ export default function FileTree(): React.JSX.Element {
   const [creating, setCreating] = useState<'note' | 'folder' | null>(null)
   const [newName, setNewName] = useState('')
   const newNameRef = useRef<HTMLInputElement>(null)
+  // Track explicitly created empty folders so they appear before any notes are added
+  const [emptyFolders, setEmptyFolders] = useState<string[]>([])
 
   useEffect(() => {
     if (creating) newNameRef.current?.focus()
@@ -120,12 +140,18 @@ export default function FileTree(): React.JSX.Element {
     return () => { off1(); off2(); off3() }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Drop an empty-folder entry once it has notes in it
+  useEffect(() => {
+    setEmptyFolders((prev) =>
+      prev.filter((f) => !notes.some((n) => n.relativePath.startsWith(f + '/')))
+    )
+  }, [notes])
+
   function handleNoteSelect(note: NoteMetadata): void {
     setSelectedNote(note)
     openTab(note)
   }
 
-  // Place new items inside the selected note's folder, or at vault root
   function getCreateParent(): string {
     if (!selectedNote) return ''
     const parts = selectedNote.relativePath.split('/')
@@ -140,10 +166,7 @@ export default function FileTree(): React.JSX.Element {
   async function handleCreate(e: React.FormEvent): Promise<void> {
     e.preventDefault()
     const trimmed = newName.trim()
-    if (!trimmed) {
-      setCreating(null)
-      return
-    }
+    if (!trimmed) { setCreating(null); return }
     const parent = getCreateParent()
     const relPath = parent ? `${parent}/${trimmed}` : trimmed
 
@@ -159,6 +182,7 @@ export default function FileTree(): React.JSX.Element {
         }
       } else {
         await window.api.notes.createFolder(relPath)
+        setEmptyFolders((prev) => [...prev, relPath])
         await loadNotes()
       }
     } catch (err) {
@@ -179,7 +203,7 @@ export default function FileTree(): React.JSX.Element {
     return notes.filter((n) => n.title.toLowerCase().includes(q) || n.relativePath.toLowerCase().includes(q))
   }, [notes, search])
 
-  const tree = useMemo(() => buildTree(filtered), [filtered])
+  const tree = useMemo(() => buildTree(filtered, emptyFolders), [filtered, emptyFolders])
 
   const createParent = getCreateParent()
 
@@ -226,7 +250,7 @@ export default function FileTree(): React.JSX.Element {
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               onKeyDown={(e) => e.key === 'Escape' && cancelCreate()}
-              placeholder={creating === 'note' ? 'note-name.md' : 'folder-name'}
+              placeholder={creating === 'note' ? 'note-name' : 'folder-name'}
               className="flex-1 rounded border border-vault-accent bg-vault-bg px-2 py-1 text-xs text-vault-text outline-none placeholder:text-vault-muted"
             />
             <button
