@@ -6,6 +6,10 @@
  * Obsidian's "Live Preview" mode.  When the cursor moves inside the node the
  * raw markdown is revealed so the user can edit it.
  *
+ * CM6 rule: block decorations (block:true) MUST come from a StateField, not a
+ * ViewPlugin.  Inline decorations (Decoration.mark / non-block replace) are
+ * fine in a ViewPlugin.
+ *
  * Handled constructs:
  *   ATX headings (H1–H6) · fenced code blocks · inline code
  *   bold (StrongEmphasis) · italic (Emphasis) · links · horizontal rules
@@ -17,10 +21,11 @@ import {
   EditorView,
   ViewPlugin,
   type ViewUpdate,
-  WidgetType
+  WidgetType,
 } from '@codemirror/view'
 import { syntaxHighlighting, HighlightStyle } from '@codemirror/language'
 import { syntaxTree } from '@codemirror/language'
+import { StateField, type Extension } from '@codemirror/state'
 import type { EditorState } from '@codemirror/state'
 import type { Range } from '@codemirror/state'
 import { tags } from '@lezer/highlight'
@@ -39,7 +44,7 @@ function cursorOverlaps(state: EditorState, from: number, to: number): boolean {
 class CodeBlockWidget extends WidgetType {
   constructor(
     readonly lang: string,
-    readonly code: string
+    readonly code: string,
   ) {
     super()
   }
@@ -84,9 +89,80 @@ class HrWidget extends WidgetType {
   }
 }
 
-// ── Decoration builder ───────────────────────────────────────────────────────
+// ── Block decorations (StateField) ───────────────────────────────────────────
+// CM6 requires block:true decorations to come from a StateField, not a plugin.
 
-function buildDecorations(view: EditorView): DecorationSet {
+function buildBlockDecorations(state: EditorState): DecorationSet {
+  const deco: Range<Decoration>[] = []
+
+  syntaxTree(state).iterate({
+    enter(node): false | void {
+      const { from, to, name } = node
+
+      // ── Fenced code blocks ───────────────────────────────────────────────
+      if (name === 'FencedCode') {
+        if (cursorOverlaps(state, from, to)) return false
+
+        const text = state.sliceDoc(from, to)
+        const lines = text.split('\n')
+        const lang = lines[0].replace(/^[`~]+/, '').trim()
+        const code = lines
+          .slice(1, lines[lines.length - 1].match(/^[`~]{3}/) ? -1 : undefined)
+          .join('\n')
+
+        const startLine = state.doc.lineAt(from)
+        const endLine = state.doc.lineAt(Math.max(from, to - 1))
+
+        deco.push(
+          Decoration.replace({
+            widget: new CodeBlockWidget(lang, code),
+            block: true,
+          }).range(startLine.from, endLine.to),
+        )
+        return false
+      }
+
+      // ── Horizontal rule ──────────────────────────────────────────────────
+      if (name === 'HorizontalRule') {
+        if (cursorOverlaps(state, from, to)) return false
+
+        const startLine = state.doc.lineAt(from)
+        const endLine = state.doc.lineAt(Math.max(from, to - 1))
+
+        deco.push(
+          Decoration.replace({
+            widget: new HrWidget(),
+            block: true,
+          }).range(startLine.from, endLine.to),
+        )
+        return false
+      }
+      return
+    },
+  })
+
+  return Decoration.set(deco.sort((a, b) => a.from - b.from))
+}
+
+const blockDecorationField = StateField.define<DecorationSet>({
+  create(state) {
+    return buildBlockDecorations(state)
+  },
+  update(decorations, tr) {
+    if (tr.docChanged || tr.selection) {
+      return buildBlockDecorations(tr.state)
+    }
+    return decorations
+  },
+  provide(field) {
+    return EditorView.decorations.from(field)
+  },
+})
+
+// ── Inline decorations (ViewPlugin) ─────────────────────────────────────────
+// Inline Decoration.replace and Decoration.mark are allowed in ViewPlugins.
+
+function buildInlineDecorations(view: EditorView): DecorationSet {
   const { state } = view
   const deco: Range<Decoration>[] = []
 
@@ -94,48 +170,24 @@ function buildDecorations(view: EditorView): DecorationSet {
     enter(node): false | void {
       const { from, to, name } = node
 
-      // ── ATX Headings ───────────────────────────────────────────────────────
+      // ── ATX Headings (H1–H6) ────────────────────────────────────────────
       if (/^ATXHeading[1-6]$/.test(name)) {
         if (cursorOverlaps(state, from, to)) return false
 
         const level = parseInt(name.slice(-1), 10)
-        // "# " prefix is (level) hashes + 1 space
-        const markerLen = level + 1
+        const markerLen = level + 1 // "## " = 2 hashes + 1 space
         const markerEnd = from + markerLen
 
         if (markerEnd <= to) {
           deco.push(Decoration.replace({}).range(from, markerEnd))
-          deco.push(Decoration.mark({ class: `cm-live-h cm-live-h${level}` }).range(markerEnd, to))
+          deco.push(
+            Decoration.mark({ class: `cm-live-h cm-live-h${level}` }).range(markerEnd, to),
+          )
         }
         return false
       }
 
-      // ── Fenced code blocks ─────────────────────────────────────────────────
-      if (name === 'FencedCode') {
-        if (cursorOverlaps(state, from, to)) return false
-
-        const text = state.sliceDoc(from, to)
-        const lines = text.split('\n')
-        const lang = lines[0].replace(/^`+~*/, '').trim()
-        // Body is everything between the opening and closing fences
-        const code = lines
-          .slice(1, lines[lines.length - 1].match(/^[`~]{3}/) ? -1 : undefined)
-          .join('\n')
-
-        // Block decorations must align to line boundaries
-        const startLine = state.doc.lineAt(from)
-        const endLine = state.doc.lineAt(Math.max(from, to - 1))
-
-        deco.push(
-          Decoration.replace({
-            widget: new CodeBlockWidget(lang, code),
-            block: true
-          }).range(startLine.from, endLine.to)
-        )
-        return false
-      }
-
-      // ── Inline code ────────────────────────────────────────────────────────
+      // ── Inline code ──────────────────────────────────────────────────────
       if (name === 'InlineCode') {
         if (cursorOverlaps(state, from, to)) return false
 
@@ -151,12 +203,11 @@ function buildDecorations(view: EditorView): DecorationSet {
         return false
       }
 
-      // ── Strong emphasis (**bold** / __bold__) ──────────────────────────────
+      // ── Strong emphasis (**bold** / __bold__) ────────────────────────────
       if (name === 'StrongEmphasis') {
         if (cursorOverlaps(state, from, to)) return false
 
         const mLen = 2
-
         if (from + mLen < to - mLen) {
           deco.push(Decoration.replace({}).range(from, from + mLen))
           deco.push(Decoration.mark({ class: 'cm-live-strong' }).range(from + mLen, to - mLen))
@@ -165,7 +216,7 @@ function buildDecorations(view: EditorView): DecorationSet {
         return false
       }
 
-      // ── Emphasis (*italic* / _italic_) ─────────────────────────────────────
+      // ── Emphasis (*italic* / _italic_) ───────────────────────────────────
       if (name === 'Emphasis') {
         if (cursorOverlaps(state, from, to)) return false
 
@@ -177,7 +228,7 @@ function buildDecorations(view: EditorView): DecorationSet {
         return false
       }
 
-      // ── Links [text](url) ──────────────────────────────────────────────────
+      // ── Links [text](url) ────────────────────────────────────────────────
       if (name === 'Link') {
         if (cursorOverlaps(state, from, to)) return false
 
@@ -187,110 +238,84 @@ function buildDecorations(view: EditorView): DecorationSet {
           const linkTextStart = from + 1
           const linkTextEnd = from + 1 + match[1].length
           deco.push(Decoration.replace({}).range(from, linkTextStart))
-          deco.push(Decoration.mark({ class: 'cm-live-link' }).range(linkTextStart, linkTextEnd))
+          deco.push(
+            Decoration.mark({ class: 'cm-live-link' }).range(linkTextStart, linkTextEnd),
+          )
           deco.push(Decoration.replace({}).range(linkTextEnd, to))
         }
         return false
       }
-
-      // ── Horizontal rule ────────────────────────────────────────────────────
-      if (name === 'HorizontalRule') {
-        if (cursorOverlaps(state, from, to)) return false
-
-        const startLine = state.doc.lineAt(from)
-        const endLine = state.doc.lineAt(Math.max(from, to - 1))
-
-        deco.push(
-          Decoration.replace({
-            widget: new HrWidget(),
-            block: true
-          }).range(startLine.from, endLine.to)
-        )
-        return false
-      }
       return
-    }
+    },
   })
 
   return Decoration.set(
-    deco.sort((a, b) => a.from - b.from || a.value.startSide - b.value.startSide)
+    deco.sort((a, b) => a.from - b.from || a.value.startSide - b.value.startSide),
   )
 }
 
-// ── View plugin ──────────────────────────────────────────────────────────────
-
-export const livePreviewPlugin = ViewPlugin.fromClass(
+const inlineDecorationPlugin = ViewPlugin.fromClass(
   class {
     decorations: DecorationSet
 
     constructor(view: EditorView) {
-      this.decorations = buildDecorations(view)
+      this.decorations = buildInlineDecorations(view)
     }
 
     update(update: ViewUpdate): void {
       if (update.docChanged || update.selectionSet || update.viewportChanged) {
-        this.decorations = buildDecorations(update.view)
+        this.decorations = buildInlineDecorations(update.view)
       }
     }
   },
-  { decorations: v => v.decorations }
+  { decorations: (v) => v.decorations },
 )
 
-// ── Syntax highlight style (raw text shown when cursor is nearby) ────────────
+// ── Syntax highlight style (raw text shown when cursor is nearby) ─────────────
 
 export const markdownHighlightStyle = syntaxHighlighting(
   HighlightStyle.define([
     { tag: tags.strong, fontWeight: '700' },
     { tag: tags.emphasis, fontStyle: 'italic' },
-    {
-      tag: tags.monospace,
-      fontFamily: "'JetBrains Mono','Fira Code',monospace",
-      fontSize: '0.875em'
-    },
+    { tag: tags.monospace, fontFamily: "'JetBrains Mono','Fira Code',monospace", fontSize: '0.875em' },
     { tag: tags.link, color: 'var(--vault-accent)' },
     { tag: tags.url, color: 'var(--vault-muted)', fontSize: '0.85em' },
-    { tag: tags.processingInstruction, color: 'var(--vault-muted)', opacity: '1' },
-    { tag: tags.punctuation, color: 'var(--vault-muted)' }
-  ])
+    { tag: tags.processingInstruction, color: 'var(--vault-muted)' },
+    { tag: tags.punctuation, color: 'var(--vault-muted)' },
+  ]),
 )
 
-// ── Theme ────────────────────────────────────────────────────────────────────
+// ── Combined export ───────────────────────────────────────────────────────────
+// CM6 flattens nested extension arrays, so this is valid as a single Extension.
+
+export const livePreviewPlugin: Extension = [blockDecorationField, inlineDecorationPlugin]
+
+// ── Theme ─────────────────────────────────────────────────────────────────────
 
 export const mindpalaceTheme = EditorView.theme({
-  // Container
-  '&': {
-    fontSize: '15px',
-    background: 'transparent',
-    height: '100%'
-  },
+  '&': { fontSize: '15px', background: 'transparent', height: '100%' },
   '.cm-scroller': {
     fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, sans-serif',
     lineHeight: '1.75',
     color: 'var(--vault-text)',
-    overflowY: 'auto'
+    overflowY: 'auto',
   },
   '.cm-content': {
     padding: '24px 32px 64px',
     caretColor: 'var(--vault-accent)',
     color: 'var(--vault-text)',
-    maxWidth: '860px'
+    maxWidth: '860px',
   },
   '.cm-line': { padding: '0', color: 'var(--vault-text)' },
-
-  // Hide gutter entirely
   '.cm-gutters': { display: 'none' },
-
-  // Cursor + selection
   '&.cm-focused': { outline: 'none' },
   '&.cm-focused .cm-cursor': { borderLeftColor: 'var(--vault-accent)', borderLeftWidth: '2px' },
   '&.cm-focused .cm-selectionBackground, .cm-selectionBackground': {
-    background: 'color-mix(in srgb, var(--vault-accent) 22%, transparent)'
+    background: 'color-mix(in srgb, var(--vault-accent) 22%, transparent)',
   },
   '.cm-activeLine': { background: 'transparent' },
 
-  // ── Live-preview decoration classes ────────────────────────────────────────
-
-  // Headings — rendered when cursor is away
+  // Headings
   '.cm-live-h': { display: 'inline', fontWeight: '700', color: 'var(--vault-text)' },
   '.cm-live-h1': { fontSize: '1.75em', lineHeight: '1.3' },
   '.cm-live-h2': { fontSize: '1.375em', lineHeight: '1.35' },
@@ -308,15 +333,11 @@ export const mindpalaceTheme = EditorView.theme({
     background: 'var(--vault-surface)',
     border: '1px solid var(--vault-border)',
     borderRadius: '3px',
-    padding: '0.1em 0.35em'
+    padding: '0.1em 0.35em',
   },
-  '.cm-live-link': {
-    color: 'var(--vault-accent)',
-    textDecoration: 'underline',
-    cursor: 'pointer'
-  },
+  '.cm-live-link': { color: 'var(--vault-accent)', textDecoration: 'underline', cursor: 'pointer' },
 
-  // Rendered fenced code block widget
+  // Fenced code block widget
   '.cm-rendered-codeblock': {
     position: 'relative',
     display: 'block',
@@ -325,7 +346,7 @@ export const mindpalaceTheme = EditorView.theme({
     borderRadius: '6px',
     padding: '12px 16px',
     margin: '6px 0',
-    overflow: 'auto'
+    overflow: 'auto',
   },
   '.cm-rendered-codeblock pre': {
     margin: '0',
@@ -333,13 +354,9 @@ export const mindpalaceTheme = EditorView.theme({
     fontSize: '0.875em',
     lineHeight: '1.55',
     whiteSpace: 'pre',
-    color: 'var(--vault-text)'
+    color: 'var(--vault-text)',
   },
-  '.cm-rendered-codeblock code': {
-    background: 'transparent',
-    padding: '0',
-    border: 'none'
-  },
+  '.cm-rendered-codeblock code': { background: 'transparent', padding: '0', border: 'none' },
   '.cm-codeblock-lang': {
     position: 'absolute',
     top: '7px',
@@ -348,15 +365,15 @@ export const mindpalaceTheme = EditorView.theme({
     color: 'var(--vault-muted)',
     textTransform: 'lowercase',
     letterSpacing: '0.03em',
-    userSelect: 'none'
+    userSelect: 'none',
   },
 
-  // Rendered horizontal rule widget
+  // Horizontal rule widget
   '.cm-rendered-hr': {
     display: 'block',
     width: '100%',
     border: 'none',
     borderTop: '1px solid var(--vault-border)',
-    margin: '10px 0'
-  }
+    margin: '10px 0',
+  },
 })
