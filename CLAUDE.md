@@ -71,4 +71,4 @@ Each skill: `.claude/skills/{skill-name}.md`
 - [x] Phase 3 — GitHub Auth & Git Sync
 - [x] Phase 4 — Search, Quick Switcher & Tags
 - [x] Phase 5 — Images, Graph View & Daily Notes
-- [ ] Phase 6 — Polish, Settings & Packaging
+- [x] Phase 6 — Command Palette, Settings & Packaging

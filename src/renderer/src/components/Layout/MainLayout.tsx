@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect } from 'react'
 import { useVaultStore } from '../../stores/vaultStore'
 import { useSyncStore } from '../../stores/syncStore'
+import { useUIStore } from '../../stores/uiStore'
 import FileTree from '../Sidebar/FileTree'
 import VaultManagerScreen from '../VaultManager/VaultManagerScreen'
 import EditorPane from '../Editor/EditorPane'
@@ -10,22 +11,33 @@ import ConflictModal from '../Sync/ConflictModal'
 import QuickSwitcher from '../Search/QuickSwitcher'
 import GraphView from '../Graph/GraphView'
 import DailyNoteButton from '../DailyNotes/DailyNoteButton'
+import CommandPalette from '../CommandPalette/CommandPalette'
+import SettingsPanel from '../Settings/SettingsPanel'
 
 export default function MainLayout(): React.JSX.Element {
   const { isManagerOpen, openManager, activeVault } = useVaultStore()
   const { isConnectModalOpen, isConflictModalOpen } = useSyncStore()
-  const [isQuickSwitcherOpen, setIsQuickSwitcherOpen] = useState(false)
-  const [isGraphOpen, setIsGraphOpen] = useState(false)
+  const {
+    isGraphOpen, closeGraph, openGraph,
+    isSettingsOpen, openSettings,
+    isCommandPaletteOpen, openCommandPalette, closeCommandPalette,
+  } = useUIStore()
+
+  // QuickSwitcher (Ctrl+P) lives in local state since it's a separate concept from command palette
+  const [isQuickSwitcherOpen, setIsQuickSwitcherOpen] = React.useState(false)
 
   useEffect(() => {
     function onKey(e: KeyboardEvent): void {
-      if (e.ctrlKey && e.shiftKey && e.key === 'V') { openManager(); return }
-      if (e.ctrlKey && e.shiftKey && e.key === 'G') { e.preventDefault(); setIsGraphOpen((v) => !v); return }
-      if (e.ctrlKey && !e.shiftKey && e.key === 'p') { e.preventDefault(); setIsQuickSwitcherOpen(true) }
+      const ctrl = e.ctrlKey || e.metaKey
+      if (ctrl && e.shiftKey && e.key === 'V') { openManager(); return }
+      if (ctrl && e.shiftKey && e.key === 'G') { e.preventDefault(); openGraph(); return }
+      if (ctrl && e.shiftKey && e.key === 'P') { e.preventDefault(); openCommandPalette(); return }
+      if (ctrl && !e.shiftKey && e.key === ',') { e.preventDefault(); openSettings(); return }
+      if (ctrl && !e.shiftKey && e.key === 'p') { e.preventDefault(); setIsQuickSwitcherOpen(true) }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [openManager])
+  }, [openManager, openGraph, openCommandPalette, openSettings])
 
   return (
     <div className="flex h-screen w-screen bg-vault-bg text-vault-text overflow-hidden">
@@ -45,17 +57,25 @@ export default function MainLayout(): React.JSX.Element {
           <FileTree />
         </div>
 
-        {/* Quick actions: daily note + graph view */}
+        {/* Quick action buttons */}
         {activeVault && (
           <div className="flex-shrink-0 border-t border-vault-border">
             <DailyNoteButton />
             <button
-              onClick={() => setIsGraphOpen(true)}
+              onClick={openGraph}
               className="flex items-center gap-2 px-3 py-1.5 text-xs text-vault-muted hover:text-vault-text hover:bg-vault-border/40 transition-colors w-full text-left"
-              title="Open graph view (Ctrl+Shift+G)"
+              title="Graph view (Ctrl+Shift+G)"
             >
               <span>🕸</span>
               <span>Graph View</span>
+            </button>
+            <button
+              onClick={openSettings}
+              className="flex items-center gap-2 px-3 py-1.5 text-xs text-vault-muted hover:text-vault-text hover:bg-vault-border/40 transition-colors w-full text-left"
+              title="Settings (Ctrl+,)"
+            >
+              <span>⚙</span>
+              <span>Settings</span>
             </button>
           </div>
         )}
@@ -68,11 +88,14 @@ export default function MainLayout(): React.JSX.Element {
         <EditorPane />
       </main>
 
+      {/* Overlays */}
       {isManagerOpen && <VaultManagerScreen />}
       {isConnectModalOpen && <ConnectGitHubModal />}
       {isConflictModalOpen && <ConflictModal />}
       {isQuickSwitcherOpen && <QuickSwitcher onClose={() => setIsQuickSwitcherOpen(false)} />}
-      {isGraphOpen && <GraphView onClose={() => setIsGraphOpen(false)} />}
+      {isGraphOpen && <GraphView onClose={closeGraph} />}
+      {isCommandPaletteOpen && <CommandPalette onClose={closeCommandPalette} />}
+      {isSettingsOpen && <SettingsPanel />}
     </div>
   )
 }

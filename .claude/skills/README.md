@@ -15,5 +15,5 @@ Each skill captures the key pattern so it can be applied to new projects.
 | [sqlite-fts5-search](./sqlite-fts5-search.md) | 4 | better-sqlite3 FTS5 full-text search with BM25 ranking, backlinks, migration |
 | [image-handling-ipc](./image-handling-ipc.md) | 5 | Three image storage modes + clipboard paste + path rewriting on rename |
 | [d3-force-graph](./d3-force-graph.md) | 5 | D3.js v7 force-directed backlink graph in a React component |
-| electron-builder-packaging | 6 | Multi-platform builds + GitHub Actions release workflow + auto-update |
-| command-palette-pattern | 6 | Fuzzy command palette (Ctrl+Shift+P) with Zustand action registry |
+| [electron-builder-packaging](./electron-builder-packaging.md) | 6 | Multi-platform builds + GitHub Actions release workflow + auto-update |
+| [command-palette-pattern](./command-palette-pattern.md) | 6 | Fuzzy command palette (Ctrl+Shift+P) with Zustand action registry |

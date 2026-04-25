@@ -1,6 +1,7 @@
 import { app, BrowserWindow, shell } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
+import { autoUpdater } from 'electron-updater'
 import { registerVaultHandlers } from './ipc/vault'
 import { registerNotesHandlers } from './ipc/notes'
 import { registerAuthHandlers } from './ipc/auth'
@@ -56,6 +57,11 @@ app.whenReady().then(() => {
   registerImageHandlers()
 
   createWindow()
+
+  // Check for updates in packaged builds only
+  if (!is.dev) {
+    autoUpdater.checkForUpdatesAndNotify()
+  }
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()

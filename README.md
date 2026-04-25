@@ -17,7 +17,7 @@ Each vault maps 1:1 to a GitHub repository. Switch between as many independent v
 | GitHub auth (Device Flow) + git sync | 3 | ✅ Done |
 | Full-text search + quick switcher | 4 | ✅ Done |
 | Image handling + graph view + daily notes | 5 | ✅ Done |
-| Command palette + settings + packaging | 6 | 🔲 Planned |
+| Command palette + settings + packaging | 6 | ✅ Done |
 
 ---
 
@@ -163,6 +163,17 @@ Notes are plain `.md` files in a folder you choose. A GitHub repo acts as the re
 ---
 
 ## Phase Log
+
+### Phase 6 — Command Palette, Settings & Packaging ✅
+- `themeEngine.ts` — `applyTheme()` toggles `.light` class on `<html>`; `loadSavedTheme()` / `saveTheme()` persist to `localStorage`
+- `uiStore.ts` — Zustand store for `isSettingsOpen`, `isGraphOpen`, `isCommandPaletteOpen`, `theme`; `toggleTheme()` applies + persists in one call
+- `commands.ts` — `getAllCommands()` reads Zustand store snapshots at call time; returns typed `Command[]` with `id`, `label`, `shortcut`, `action`
+- `CommandPalette` — `Ctrl+Shift+P` overlay; `useMemo` snapshots commands on open; substring filter; ↑↓ Enter Esc keyboard nav; runs action then closes
+- `SettingsPanel` — tabbed modal (Appearance / Editor / Vault / Images / Sync); reads `activeConfig`; saves via `vault:updateConfig` + refreshes `vaultStore`
+- `App.tsx` — applies persisted theme before first paint; `uiStore.setTheme` called on startup
+- `MainLayout.tsx` — `Ctrl+,` opens settings; `Ctrl+Shift+P` opens command palette; graph/settings/palette state moved to `uiStore`; Settings button in sidebar
+- `electron-updater` — `autoUpdater.checkForUpdatesAndNotify()` in main process (production builds only)
+- `.github/workflows/release.yml` — tag-triggered (`v*`) matrix build across ubuntu/windows/macos; uploads installers to GitHub Release via `GH_TOKEN`
 
 ### Phase 5 — Images, Graph View & Daily Notes ✅
 - `ImageService` — three storage modes (`same-folder`, `subfolder`, `global`); `paste()` saves base64 clipboard data; `importFile()` copies from arbitrary path; `rewritePaths()` fixes all `![](path)` embeds after a note is renamed
