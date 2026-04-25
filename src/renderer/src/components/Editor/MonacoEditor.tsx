@@ -1,18 +1,29 @@
 import React, { useCallback, useEffect, useRef } from 'react'
-import { Editor } from '@monaco-editor/react'
+import { Editor, type OnMount } from '@monaco-editor/react'
 import { useEditorStore } from '../../stores/editorStore'
 
 const SAVE_DELAY_MS = 1000
+
+type IEditor = Parameters<OnMount>[0]
 
 export default function MonacoEditor(): React.JSX.Element | null {
   const { tabs, activeTabId, setContent, saveTab } = useEditorStore()
   const tab = tabs.find((t) => t.id === activeTabId)
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const editorRef = useRef<IEditor | null>(null)
+  // Always reflects the current tab so the paste handler (registered once per mount) stays fresh
+  const tabRef = useRef(tab)
+  const pasteCleanupRef = useRef<(() => void) | null>(null)
 
-  // Clear pending save on unmount
+  useEffect(() => {
+    tabRef.current = tab
+  }, [tab])
+
+  // Clear pending save on unmount; also clean up paste listener
   useEffect(() => {
     return () => {
       if (saveTimer.current) clearTimeout(saveTimer.current)
+      pasteCleanupRef.current?.()
     }
   }, [])
 
@@ -26,6 +37,57 @@ export default function MonacoEditor(): React.JSX.Element | null {
     [activeTabId, setContent, saveTab]
   )
 
+  const handleMount = useCallback((editor: IEditor) => {
+    editorRef.current = editor
+    const domNode = editor.getDomNode()
+    if (!domNode) return
+
+    const onPaste = async (e: ClipboardEvent): Promise<void> => {
+      const currentTab = tabRef.current
+      if (!currentTab) return
+      const items = Array.from(e.clipboardData?.items ?? [])
+      const imgItem = items.find((item) => item.type.startsWith('image/'))
+      if (!imgItem) return
+
+      e.preventDefault()
+      e.stopPropagation()
+
+      const blob = imgItem.getAsFile()
+      if (!blob) return
+
+      // Convert blob → base64 without URL.createObjectURL to stay in memory
+      const ab = await blob.arrayBuffer()
+      const bytes = new Uint8Array(ab)
+      let binary = ''
+      for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i])
+      const base64 = btoa(binary)
+
+      try {
+        const relPath = await window.api.images.paste(currentTab.relativePath, base64, imgItem.type)
+        const position = editor.getPosition()
+        if (position) {
+          editor.executeEdits('', [
+            {
+              range: {
+                startLineNumber: position.lineNumber,
+                startColumn: position.column,
+                endLineNumber: position.lineNumber,
+                endColumn: position.column,
+              },
+              text: `![](${relPath})`,
+            },
+          ])
+        }
+      } catch (err) {
+        console.error('[MonacoEditor] image paste failed:', err)
+      }
+    }
+
+    // Use capture so we intercept before Monaco's own paste handler
+    domNode.addEventListener('paste', onPaste, true)
+    pasteCleanupRef.current = () => domNode.removeEventListener('paste', onPaste, true)
+  }, []) // stable ref — tabRef handles tab identity without re-registering
+
   if (!tab) return null
 
   return (
@@ -35,6 +97,7 @@ export default function MonacoEditor(): React.JSX.Element | null {
       defaultLanguage="markdown"
       defaultValue={tab.content}
       onChange={handleChange}
+      onMount={handleMount}
       theme="vs-dark"
       options={{
         fontSize: 14,

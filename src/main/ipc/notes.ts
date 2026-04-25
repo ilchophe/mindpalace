@@ -6,6 +6,7 @@ import type { NoteMetadata } from '../../types'
 import { vaultService } from '../services/VaultService'
 import { indexService } from '../services/IndexService'
 import { syncService } from '../services/SyncService'
+import { imageService } from '../services/ImageService'
 import { createHash } from 'crypto'
 
 function requireVaultPath(): string {
@@ -88,6 +89,14 @@ export function registerNotesHandlers(): void {
     const newAbs = join(vaultPath, newRelPath)
     mkdirSync(require('path').dirname(newAbs), { recursive: true })
     renameSync(oldAbs, newAbs)
+    // Rewrite image embed paths in the moved note
+    try {
+      const content = readFileSync(newAbs, 'utf8')
+      if (content.includes('![')) {
+        const rewritten = imageService.rewritePaths(oldRelPath, newRelPath, content)
+        if (rewritten !== content) writeFileSync(newAbs, rewritten, 'utf8')
+      }
+    } catch { /* ignore — note may not be readable */ }
     indexService.removeFile(oldAbs)
     indexService.indexFile(newAbs)
   })

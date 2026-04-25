@@ -13,7 +13,7 @@ Each skill captures the key pattern so it can be applied to new projects.
 | [github-oauth-device-flow](./github-oauth-device-flow.md) | 3 | GitHub Device Flow + safeStorage token encryption |
 | [isomorphic-git-sync](./isomorphic-git-sync.md) | 3 | isomorphic-git pull/commit/push + conflict detection in Electron |
 | [sqlite-fts5-search](./sqlite-fts5-search.md) | 4 | better-sqlite3 FTS5 full-text search with BM25 ranking, backlinks, migration |
-| image-handling-ipc | 5 | Three image storage modes + clipboard paste + path rewriting on rename |
-| d3-force-graph | 5 | D3.js v7 force-directed backlink graph in a React component |
+| [image-handling-ipc](./image-handling-ipc.md) | 5 | Three image storage modes + clipboard paste + path rewriting on rename |
+| [d3-force-graph](./d3-force-graph.md) | 5 | D3.js v7 force-directed backlink graph in a React component |
 | electron-builder-packaging | 6 | Multi-platform builds + GitHub Actions release workflow + auto-update |
 | command-palette-pattern | 6 | Fuzzy command palette (Ctrl+Shift+P) with Zustand action registry |

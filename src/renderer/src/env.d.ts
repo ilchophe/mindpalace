@@ -72,7 +72,12 @@ declare global {
         getAllTags: () => Promise<string[]>
         getBacklinks: (relPath: string) => Promise<string[]>
       }
-      images: Record<string, never>
+      images: {
+        paste: (noteRelPath: string, base64Data: string, mimeType: string) => Promise<string>
+        importFile: (noteRelPath: string, sourcePath: string) => Promise<string>
+        rewritePaths: (oldRelPath: string, newRelPath: string, content: string) => Promise<string>
+        getMode: () => Promise<string>
+      }
     }
   }
 }

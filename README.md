@@ -16,7 +16,7 @@ Each vault maps 1:1 to a GitHub repository. Switch between as many independent v
 | Monaco editor + markdown preview | 2 | ✅ Done |
 | GitHub auth (Device Flow) + git sync | 3 | ✅ Done |
 | Full-text search + quick switcher | 4 | ✅ Done |
-| Image handling + graph view + daily notes | 5 | 🔲 Planned |
+| Image handling + graph view + daily notes | 5 | ✅ Done |
 | Command palette + settings + packaging | 6 | 🔲 Planned |
 
 ---
@@ -163,6 +163,15 @@ Notes are plain `.md` files in a folder you choose. A GitHub repo acts as the re
 ---
 
 ## Phase Log
+
+### Phase 5 — Images, Graph View & Daily Notes ✅
+- `ImageService` — three storage modes (`same-folder`, `subfolder`, `global`); `paste()` saves base64 clipboard data; `importFile()` copies from arbitrary path; `rewritePaths()` fixes all `![](path)` embeds after a note is renamed
+- `images IPC handlers` — `images:paste`, `images:importFile`, `images:rewritePaths`, `images:getMode`
+- `MonacoEditor` — DOM capture paste listener (`addEventListener('paste', …, true)`) intercepts clipboard images before Monaco; converts to base64, calls `images:paste`, inserts `![](relPath)` at cursor
+- `notes:rename` IPC — reads content after `renameSync`, calls `imageService.rewritePaths()` to fix embed paths, writes back if changed
+- `graphDataBuilder.ts` — `buildGraphData(notes)` resolves `[[wiki-link]]` stems to note IDs and produces `{ nodes, links }` with per-node `linkCount` for radius sizing
+- `GraphView` — D3 v7 force simulation in a React modal overlay; nodes are circles sized by link degree; active note highlighted in purple; zoom/pan via `d3.zoom`; drag via `d3.drag`; click opens note; `Ctrl+Shift+G` toggle
+- `DailyNoteButton` — sidebar button creates/opens `{dailyNotesFolder}/{YYYY-MM-DD}.md`; applies `dailyNoteTemplate` with `{{date}}` substitution; `Ctrl+Shift+G` opens graph; daily note button always visible when a vault is open
 
 ### Phase 4 — Full-text Search & Quick Switcher ✅
 - `IndexService` — added `body_text` column with schema migration; `extractOutlinks()` parses `[[wiki-links]]`; FTS5 virtual table now indexes title + tags + body

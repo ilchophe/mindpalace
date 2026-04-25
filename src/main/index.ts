@@ -6,6 +6,7 @@ import { registerNotesHandlers } from './ipc/notes'
 import { registerAuthHandlers } from './ipc/auth'
 import { registerGitHandlers } from './ipc/git'
 import { registerSearchHandlers } from './ipc/search'
+import { registerImageHandlers } from './ipc/images'
 
 function createWindow(): void {
   const mainWindow = new BrowserWindow({
@@ -52,6 +53,7 @@ app.whenReady().then(() => {
   registerAuthHandlers()
   registerGitHandlers()
   registerSearchHandlers()
+  registerImageHandlers()
 
   createWindow()
 

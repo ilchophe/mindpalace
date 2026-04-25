@@ -91,7 +91,15 @@ const api = {
     getAllTags: () => ipcRenderer.invoke(IPC.SEARCH.GET_ALL_TAGS),
     getBacklinks: (relPath: string) => ipcRenderer.invoke(IPC.SEARCH.GET_BACKLINKS, relPath)
   },
-  images: {}
+  images: {
+    paste: (noteRelPath: string, base64Data: string, mimeType: string) =>
+      ipcRenderer.invoke(IPC.IMAGES.PASTE, noteRelPath, base64Data, mimeType),
+    importFile: (noteRelPath: string, sourcePath: string) =>
+      ipcRenderer.invoke(IPC.IMAGES.IMPORT_FILE, noteRelPath, sourcePath),
+    rewritePaths: (oldRelPath: string, newRelPath: string, content: string) =>
+      ipcRenderer.invoke(IPC.IMAGES.REWRITE_PATHS, oldRelPath, newRelPath, content),
+    getMode: () => ipcRenderer.invoke(IPC.IMAGES.GET_MODE)
+  }
 }
 
 contextBridge.exposeInMainWorld('api', api)
