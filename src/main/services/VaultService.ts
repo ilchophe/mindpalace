@@ -7,6 +7,9 @@ import type { VaultConfig, VaultSummary } from '../../types'
 import { IPC, slugify } from '../../types'
 import { vaultRegistry } from './VaultRegistry'
 import { indexService } from './IndexService'
+import { gitService } from './GitService'
+import { syncService } from './SyncService'
+import { authService } from './AuthService'
 
 const CONFIG_DIR = '.mindpalace'
 const CONFIG_FILE = 'config.json'
@@ -56,16 +59,39 @@ class VaultService {
 
     this.activeConfig = config
 
+    // Detect GitHub remote and update config + registry
+    try {
+      const remoteUrl = await gitService.getRemoteUrl(localPath)
+      if (remoteUrl) {
+        const repoMatch = remoteUrl.match(/github\.com[:/](.+?)(?:\.git)?$/)
+        if (repoMatch && !config.githubRepo) {
+          config.githubRepo = repoMatch[1]
+          this.writeConfig(localPath, config)
+        }
+      }
+    } catch {
+      // not a git repo or no remote — fine
+    }
+
+    const syncStatus = config.githubRepo
+      ? (authService.isAuthenticated() ? 'idle' : 'disconnected')
+      : 'disconnected'
+
     if (!vaultRegistry.getById(config.id)) {
       const summary = this.buildSummary(config)
       vaultRegistry.add(summary)
     }
 
     vaultRegistry.setActive(config.id)
-    vaultRegistry.update(config.id, { lastOpenedAt: new Date().toISOString() })
+    vaultRegistry.update(config.id, {
+      lastOpenedAt: new Date().toISOString(),
+      githubRepo: config.githubRepo,
+      syncStatus
+    })
 
     indexService.open(localPath)
     this.startWatcher(localPath)
+    syncService.startAutoSync(config)
 
     return config
   }
@@ -93,8 +119,9 @@ class VaultService {
     return this.open(localPath)
   }
 
-  /** Tear down the active vault (stops watcher, closes SQLite). */
+  /** Tear down the active vault (stops watcher, closes SQLite, stops sync). */
   async close(): Promise<void> {
+    syncService.stopAutoSync()
     if (this.watcher) {
       await this.watcher.close()
       this.watcher = null
@@ -116,6 +143,25 @@ class VaultService {
       githubRepo: this.activeConfig.githubRepo
     })
     return this.activeConfig
+  }
+
+  /**
+   * Clone a GitHub repo to parentDir/<repoName> and open it as a vault.
+   * Sets VaultConfig.githubRepo from the remote URL.
+   */
+  async clone(repoUrl: string, parentDir: string, token: string): Promise<VaultConfig> {
+    const repoName = repoUrl.split('/').pop()?.replace(/\.git$/, '') ?? 'vault'
+    const localPath = join(parentDir, repoName)
+
+    if (existsSync(localPath)) {
+      throw new Error(`Directory already exists: ${localPath}`)
+    }
+
+    mkdirSync(localPath, { recursive: true })
+    await gitService.clone(repoUrl, localPath, token)
+
+    const config = await this.open(localPath)
+    return config
   }
 
   /** Delete a vault from disk (and optionally registry). Caller handles GitHub delete. */

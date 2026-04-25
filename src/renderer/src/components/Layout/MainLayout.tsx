@@ -1,11 +1,16 @@
 import React, { useEffect } from 'react'
 import { useVaultStore } from '../../stores/vaultStore'
+import { useSyncStore } from '../../stores/syncStore'
 import FileTree from '../Sidebar/FileTree'
 import VaultManagerScreen from '../VaultManager/VaultManagerScreen'
 import EditorPane from '../Editor/EditorPane'
+import SyncPanel from '../Sync/SyncPanel'
+import ConnectGitHubModal from '../Auth/ConnectGitHubModal'
+import ConflictModal from '../Sync/ConflictModal'
 
 export default function MainLayout(): React.JSX.Element {
   const { isManagerOpen, openManager, activeVault } = useVaultStore()
+  const { isConnectModalOpen, isConflictModalOpen } = useSyncStore()
 
   useEffect(() => {
     function onKey(e: KeyboardEvent): void {
@@ -31,6 +36,7 @@ export default function MainLayout(): React.JSX.Element {
         <div className="flex-1 overflow-hidden">
           <FileTree />
         </div>
+        <SyncPanel />
       </aside>
 
       {/* Editor area */}
@@ -39,6 +45,8 @@ export default function MainLayout(): React.JSX.Element {
       </main>
 
       {isManagerOpen && <VaultManagerScreen />}
+      {isConnectModalOpen && <ConnectGitHubModal />}
+      {isConflictModalOpen && <ConflictModal />}
     </div>
   )
 }

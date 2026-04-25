@@ -1,8 +1,10 @@
 import { ipcMain, dialog, BrowserWindow } from 'electron'
 import { IPC } from '../../types'
-import type { VaultDeletePayload } from '../../types'
+import type { VaultDeletePayload, CloneVaultPayload } from '../../types'
 import { vaultService } from '../services/VaultService'
 import { vaultRegistry } from '../services/VaultRegistry'
+import { authService } from '../services/AuthService'
+import { gitService } from '../services/GitService'
 
 function broadcast(channel: string, ...args: unknown[]): void {
   BrowserWindow.getAllWindows().forEach((w) => w.webContents.send(channel, ...args))
@@ -82,8 +84,14 @@ export function registerVaultHandlers(): void {
       await vaultService.deleteLocal(vaultId)
 
       if (deleteRemote && summary.githubRepo) {
-        // GitHub deletion handled in Phase 3 AuthService — skip silently for now
-        console.warn('[vault:delete] deleteRemote requested but AuthService not yet implemented')
+        const token = authService.getToken()
+        if (token) {
+          try {
+            await gitService.deleteGitHubRepo(summary.githubRepo, token)
+          } catch (err) {
+            console.warn('[vault:delete] GitHub repo deletion failed:', (err as Error).message)
+          }
+        }
       }
 
       broadcast(IPC.VAULT.REGISTRY_CHANGED)
@@ -91,6 +99,19 @@ export function registerVaultHandlers(): void {
     } catch (err) {
       return { error: (err as Error).message }
     }
+  })
+
+  // ---------------------------------------------------------------------------
+  // Clone vault from GitHub
+  // ---------------------------------------------------------------------------
+
+  ipcMain.handle(IPC.VAULT.CLONE, async (_e, payload: CloneVaultPayload) => {
+    const { repoUrl, parentDir } = payload
+    const token = authService.getToken()
+    if (!token) throw new Error('Not authenticated with GitHub')
+    const config = await vaultService.clone(repoUrl, parentDir, token)
+    broadcast(IPC.VAULT.REGISTRY_CHANGED)
+    return config
   })
 
   // ---------------------------------------------------------------------------

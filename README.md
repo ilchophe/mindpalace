@@ -14,8 +14,8 @@ Each vault maps 1:1 to a GitHub repository. Switch between as many independent v
 | Vault Manager (multi-vault, switch, filter, delete) | 1 | ✅ Done |
 | File tree + SQLite index | 1 | ✅ Done |
 | Monaco editor + markdown preview | 2 | ✅ Done |
-| GitHub auth (Device Flow) + git sync | 3 | 🔲 Next |
-| Full-text search + quick switcher | 4 | 🔲 Planned |
+| GitHub auth (Device Flow) + git sync | 3 | ✅ Done |
+| Full-text search + quick switcher | 4 | 🔲 Next |
 | Image handling + graph view + daily notes | 5 | 🔲 Planned |
 | Command palette + settings + packaging | 6 | 🔲 Planned |
 
@@ -163,6 +163,20 @@ Notes are plain `.md` files in a folder you choose. A GitHub repo acts as the re
 ---
 
 ## Phase Log
+
+### Phase 3 — GitHub Auth & Git Sync ✅
+- `AuthService` — GitHub Device Flow: request code → display → poll → safeStorage token encryption
+- `GitService` — isomorphic-git wrapper: init, clone, addAll, commit, push, pull, sync, getLog, conflict resolution
+- `SyncService` — sync orchestration: 30s debounce on save, interval timer, `syncNow()` via IPC
+- `ConnectGitHubModal` — multi-step modal: configure OAuth client ID → Device Flow auth → create/link GitHub repo
+- `SyncPanel` — sidebar sync status badge (synced / pulling / pushing / conflict / error) + manual sync button
+- `ConflictModal` — side-by-side "Your version" vs "Remote version" with Keep Mine / Use Remote buttons
+- `vault:clone` IPC — clone GitHub repo to local dir and open as vault
+- `git:connectRemote` IPC — init + add remote + initial push for existing local vault
+- `git:sync` IPC — stage all → commit if dirty → pull → push (retry once on PushRejectedError)
+- Auto-sync wired into `notes:write` (30s debounce) and vault open (interval timer)
+- `settingsStore` — app-settings electron-store for OAuth client ID, encrypted token, GitHub user
+- `syncStore` Zustand store — auth status, device flow state, sync status, conflict list
 
 ### Phase 2 — Monaco Editor + Markdown Preview ✅
 - `editorStore` — Zustand store: open tabs, active tab, view mode (`edit`/`split`/`preview`), dirty tracking, auto-save

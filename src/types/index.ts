@@ -100,6 +100,91 @@ export interface ConflictEntry {
 }
 
 // ---------------------------------------------------------------------------
+// Auth (GitHub Device Flow)
+// ---------------------------------------------------------------------------
+
+export interface GitHubUser {
+  login: string
+  name: string
+  email: string
+  avatarUrl: string
+}
+
+export interface AuthStatus {
+  isAuthenticated: boolean
+  user: GitHubUser | null
+  clientId: string
+}
+
+export interface DeviceFlowStart {
+  deviceCode: string
+  userCode: string
+  verificationUri: string
+  expiresIn: number
+  interval: number
+}
+
+export interface DeviceFlowPollResult {
+  status: 'pending' | 'authorized' | 'slow_down' | 'expired' | 'denied' | 'error'
+  token?: string
+  errorMessage?: string
+}
+
+// ---------------------------------------------------------------------------
+// Git operations
+// ---------------------------------------------------------------------------
+
+export interface GitFileStatus {
+  filepath: string
+  status: 'untracked' | 'added' | 'modified' | 'modified-staged' | 'deleted' | 'deleted-staged' | 'unknown'
+}
+
+export interface GitAuthor {
+  name: string
+  email: string
+}
+
+export interface SyncResult {
+  pulled: boolean
+  pushed: boolean
+  conflicts: string[]
+  error?: string
+}
+
+export interface SyncStatusPayload {
+  status: 'idle' | 'pulling' | 'pushing' | 'conflict' | 'error' | 'disconnected'
+  message?: string
+  conflicts?: string[]
+  pushedAt?: string
+}
+
+export interface CommitLog {
+  oid: string
+  message: string
+  author: GitAuthor
+  timestamp: number
+}
+
+export interface GitHubRepo {
+  name: string
+  fullName: string
+  cloneUrl: string
+  private: boolean
+}
+
+export interface ConnectRemotePayload {
+  action: 'create' | 'link'
+  repoName?: string       // for action === 'create'
+  repoUrl?: string        // for action === 'link' (full clone URL)
+  isPrivate?: boolean     // for action === 'create'
+}
+
+export interface CloneVaultPayload {
+  repoUrl: string
+  parentDir: string
+}
+
+// ---------------------------------------------------------------------------
 // Search
 // ---------------------------------------------------------------------------
 
@@ -137,7 +222,8 @@ export const IPC = {
     START_DEVICE_FLOW: 'auth:startDeviceFlow',
     POLL_DEVICE_AUTH:  'auth:pollDeviceAuth',
     GET_STATUS:        'auth:getAuthStatus',
-    LOGOUT:            'auth:logout'
+    LOGOUT:            'auth:logout',
+    SET_CLIENT_ID:     'auth:setClientId'
   },
 
   VAULT: {
@@ -182,17 +268,22 @@ export const IPC = {
   },
 
   GIT: {
-    STATUS:           'git:status',
-    PULL:             'git:pull',
-    COMMIT:           'git:commit',
-    PUSH:             'git:push',
-    SYNC:             'git:sync',
-    RESOLVE_CONFLICT: 'git:resolveConflict',
-    GET_LOG:          'git:getLog',
-    GET_DIFF:         'git:getDiff',
+    STATUS:              'git:status',
+    PULL:                'git:pull',
+    COMMIT:              'git:commit',
+    PUSH:                'git:push',
+    SYNC:                'git:sync',
+    RESOLVE_CONFLICT:    'git:resolveConflict',
+    GET_LOG:             'git:getLog',
+    GET_DIFF:            'git:getDiff',
+    INIT_REPO:           'git:initRepo',
+    CONNECT_REMOTE:      'git:connectRemote',
+    CREATE_GITHUB_REPO:  'git:createGitHubRepo',
+    LIST_GITHUB_REPOS:   'git:listGitHubRepos',
+    CLONE_VAULT:         'git:cloneVault',
     // Push events
-    SYNC_STATUS:      'git:sync-status',
-    CONFLICT_DETECTED:'git:conflict-detected'
+    SYNC_STATUS:         'git:sync-status',
+    CONFLICT_DETECTED:   'git:conflict-detected'
   },
 
   IMAGES: {

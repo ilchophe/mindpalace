@@ -5,6 +5,7 @@ import { IPC } from '../../types'
 import type { NoteMetadata } from '../../types'
 import { vaultService } from '../services/VaultService'
 import { indexService } from '../services/IndexService'
+import { syncService } from '../services/SyncService'
 import { createHash } from 'crypto'
 
 function requireVaultPath(): string {
@@ -12,6 +13,7 @@ function requireVaultPath(): string {
   if (!config) throw new Error('No vault is currently open')
   return config.localPath
 }
+
 
 function fileId(relPath: string): string {
   return createHash('sha256').update(relPath).digest('hex').slice(0, 16)
@@ -71,11 +73,13 @@ export function registerNotesHandlers(): void {
   })
 
   ipcMain.handle(IPC.NOTES.WRITE, (_e, relPath: string, content: string) => {
-    const vaultPath = requireVaultPath()
-    const abs = join(vaultPath, relPath)
+    const config = vaultService.getActiveConfig()
+    if (!config) throw new Error('No vault is currently open')
+    const abs = join(config.localPath, relPath)
     mkdirSync(dirname(abs), { recursive: true })
     writeFileSync(abs, content, 'utf8')
     indexService.indexFile(abs)
+    syncService.scheduleSyncAfterSave(config)
   })
 
   ipcMain.handle(IPC.NOTES.RENAME, (_e, oldRelPath: string, newRelPath: string) => {

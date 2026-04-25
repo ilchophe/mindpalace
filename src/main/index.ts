@@ -3,6 +3,8 @@ import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { registerVaultHandlers } from './ipc/vault'
 import { registerNotesHandlers } from './ipc/notes'
+import { registerAuthHandlers } from './ipc/auth'
+import { registerGitHandlers } from './ipc/git'
 
 function createWindow(): void {
   const mainWindow = new BrowserWindow({
@@ -46,6 +48,8 @@ app.whenReady().then(() => {
 
   registerVaultHandlers()
   registerNotesHandlers()
+  registerAuthHandlers()
+  registerGitHandlers()
 
   createWindow()
 

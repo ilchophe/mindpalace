@@ -1,5 +1,19 @@
 /// <reference types="vite/client" />
-import type { VaultConfig, VaultSummary, VaultDeletePayload, NoteMetadata } from '../../types'
+import type {
+  VaultConfig,
+  VaultSummary,
+  VaultDeletePayload,
+  NoteMetadata,
+  AuthStatus,
+  DeviceFlowStart,
+  DeviceFlowPollResult,
+  GitFileStatus,
+  CommitLog,
+  GitHubRepo,
+  SyncStatusPayload,
+  ConnectRemotePayload,
+  CloneVaultPayload
+} from '../../types'
 
 declare global {
   interface Window {
@@ -11,6 +25,7 @@ declare global {
         create: (name: string, parentDir: string) => Promise<VaultConfig>
         close: () => Promise<void>
         switch: (vaultId: string) => Promise<VaultConfig>
+        clone: (payload: CloneVaultPayload) => Promise<VaultConfig>
         getConfig: () => Promise<VaultConfig | null>
         updateConfig: (changes: Partial<VaultConfig>) => Promise<VaultConfig>
         pin: (vaultId: string, pinned: boolean) => Promise<void>
@@ -32,8 +47,24 @@ declare global {
         getBacklinks: (relPath: string) => Promise<string[]>
         resolveWikiLink: (link: string) => Promise<string | null>
       }
-      auth: Record<string, never>
-      git: Record<string, never>
+      auth: {
+        getStatus: () => Promise<AuthStatus>
+        setClientId: (clientId: string) => Promise<void>
+        startDeviceFlow: (clientId: string) => Promise<DeviceFlowStart>
+        pollDeviceAuth: (clientId: string, deviceCode: string) => Promise<DeviceFlowPollResult>
+        logout: () => Promise<void>
+      }
+      git: {
+        status: () => Promise<{ isRepo: boolean; files: GitFileStatus[] }>
+        sync: () => Promise<void>
+        getLog: (depth?: number) => Promise<CommitLog[]>
+        initRepo: () => Promise<{ isRepo: boolean }>
+        connectRemote: (payload: ConnectRemotePayload) => Promise<{ githubRepo: string | null; cloneUrl: string }>
+        listGitHubRepos: () => Promise<GitHubRepo[]>
+        resolveConflict: (filepath: string, resolution: 'ours' | 'theirs') => Promise<void>
+        onSyncStatus: (cb: (payload: SyncStatusPayload) => void) => () => void
+        onConflictDetected: (cb: (conflicts: string[]) => void) => () => void
+      }
       search: Record<string, never>
       images: Record<string, never>
     }
