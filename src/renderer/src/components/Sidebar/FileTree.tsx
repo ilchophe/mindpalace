@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import type { NoteMetadata } from '@shared'
 import { useVaultStore } from '../../stores/vaultStore'
+import { useEditorStore } from '../../stores/editorStore'
 
 interface TreeNode {
   name: string
@@ -99,7 +100,13 @@ function TreeItem({ node, depth, selectedPath, onSelect }: TreeItemProps): React
 
 export default function FileTree(): React.JSX.Element {
   const { notes, selectedNote, setSelectedNote, loadNotes, activeConfig } = useVaultStore()
+  const openTab = useEditorStore((s) => s.openTab)
   const [search, setSearch] = useState('')
+
+  function handleNoteSelect(note: NoteMetadata): void {
+    setSelectedNote(note)
+    openTab(note)
+  }
 
   useEffect(() => {
     if (activeConfig) loadNotes()
@@ -155,7 +162,7 @@ export default function FileTree(): React.JSX.Element {
               node={node}
               depth={0}
               selectedPath={selectedNote?.relativePath ?? null}
-              onSelect={setSelectedNote}
+              onSelect={handleNoteSelect}
             />
           ))
         )}

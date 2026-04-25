@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import type { VaultSummary, VaultConfig, NoteMetadata } from '@shared'
+import { useEditorStore } from './editorStore'
 
 interface VaultStore {
   // Registry
@@ -49,6 +50,7 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
 
   switchVault: async (id) => {
     set({ isLoading: true })
+    useEditorStore.getState().closeAllTabs()
     try {
       const config = await window.api.vault.switch(id)
       const [vaults, activeVault] = await Promise.all([

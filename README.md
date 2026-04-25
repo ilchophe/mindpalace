@@ -13,8 +13,8 @@ Each vault maps 1:1 to a GitHub repository. Switch between as many independent v
 | Electron scaffold + CI/CD | 0 | ✅ Done |
 | Vault Manager (multi-vault, switch, filter, delete) | 1 | ✅ Done |
 | File tree + SQLite index | 1 | ✅ Done |
-| Monaco editor + markdown preview | 2 | 🔲 Next |
-| GitHub auth (Device Flow) + git sync | 3 | 🔲 Planned |
+| Monaco editor + markdown preview | 2 | ✅ Done |
+| GitHub auth (Device Flow) + git sync | 3 | 🔲 Next |
 | Full-text search + quick switcher | 4 | 🔲 Planned |
 | Image handling + graph view + daily notes | 5 | 🔲 Planned |
 | Command palette + settings + packaging | 6 | 🔲 Planned |
@@ -163,6 +163,17 @@ Notes are plain `.md` files in a folder you choose. A GitHub repo acts as the re
 ---
 
 ## Phase Log
+
+### Phase 2 — Monaco Editor + Markdown Preview ✅
+- `editorStore` — Zustand store: open tabs, active tab, view mode (`edit`/`split`/`preview`), dirty tracking, auto-save
+- `MonacoEditor` — `@monaco-editor/react` uncontrolled (key-remount per tab), 1000ms debounce auto-save
+- `MarkdownPreview` — async remark→rehype pipeline: GFM tables + task lists, KaTeX math (`$...$` / `$$...$$`), highlight.js syntax highlighting, `rehype-sanitize`
+- `PropertiesPanel` — collapsible YAML frontmatter editor (key/value pairs); reads+writes via gray-matter
+- `TabBar` — open tabs with dirty indicator and close button; activates nearest neighbour on close
+- `EditorPane` — split-view orchestrator: left Monaco + right preview with toggle toolbar
+- `markdownPipeline.ts` — singleton unified processor; safe for concurrent calls
+- `frontmatterParser.ts` — `parseFrontmatter()` / `stringifyFrontmatter()` via gray-matter
+- Vault switch closes all open tabs via `editorStore.closeAllTabs()`
 
 ### Phase 1 — Vault Management & File Tree ✅
 - `VaultService` — open/create/close vaults, `config.json` read/write

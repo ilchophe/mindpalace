@@ -6,9 +6,10 @@ Each skill captures the key pattern so it can be applied to new projects.
 | Skill | Phase | Description |
 |---|---|---|
 | [project-scaffold](./project-scaffold.md) | 0 | Electron + electron-vite + React 18 + TS + Tailwind + electron-builder |
-| vault-filesystem | 1 | VaultService, IndexService (SQLite), chokidar watcher, FileTree |
-| monaco-editor-setup | 2 | Monaco Editor in Electron with CSP, vim keybindings, auto-save |
-| remark-rehype-pipeline | 2 | remark → rehype Markdown pipeline: wiki-links, GFM, KaTeX, highlight |
+| [vault-filesystem](./vault-filesystem.md) | 1 | VaultService, IndexService (SQLite), chokidar watcher, FileTree |
+| [vault-manager-ui](./vault-manager-ui.md) | 1 | Full-screen Vault Manager: cards, filter/sort/label, two-step deletion |
+| [monaco-editor-setup](./monaco-editor-setup.md) | 2 | Monaco Editor in Electron: uncontrolled tabs, auto-save debounce, flex sizing |
+| [remark-rehype-pipeline](./remark-rehype-pipeline.md) | 2 | remark → rehype pipeline: GFM, KaTeX math, highlight.js, sanitize |
 | github-oauth-device-flow | 3 | GitHub Device Flow + safeStorage token encryption |
 | isomorphic-git-sync | 3 | isomorphic-git pull/commit/push + conflict detection in Electron |
 | sqlite-fts5-search | 4 | better-sqlite3 FTS5 full-text search with incremental indexing |
