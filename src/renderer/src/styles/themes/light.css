@@ -1,0 +1,9 @@
+/* Catppuccin Latte — default light theme */
+.light {
+  --vault-bg: #eff1f5;
+  --vault-surface: #e6e9ef;
+  --vault-border: #ccd0da;
+  --vault-text: #4c4f69;
+  --vault-muted: #9ca0b0;
+  --vault-accent: #8839ef;
+}

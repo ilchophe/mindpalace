@@ -1,0 +1,53 @@
+appId: com.mindpalace.app
+productName: MindPalace
+directories:
+  output: dist-electron
+  buildResources: build
+files:
+  - out/**/*
+  - '!**/*.{iml,o,hprof,orig,pyc,pyo,rbc,rb,swp,tmp,bak}'
+  - '!**/._*'
+  - '!**/{.DS_Store,.git,.hg,.svn,CVS,RCS,SCCS,__pycache__,.Python,pip-log.txt}'
+  - '!**/{__tests__,test,tests,powered-test}'
+  - '!**/{thumbs.db,Thumbs.db}'
+
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+        - ia32
+  icon: build/icons/icon.ico
+  artifactName: MindPalace-${version}-win-${arch}.${ext}
+
+mac:
+  target:
+    - target: dmg
+      arch:
+        - x64
+        - arm64
+  icon: build/icons/icon.icns
+  hardenedRuntime: true
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+  artifactName: MindPalace-${version}-mac-${arch}.${ext}
+
+linux:
+  target:
+    - target: AppImage
+      arch:
+        - x64
+  icon: build/icons
+  category: Office
+  artifactName: MindPalace-${version}-linux-${arch}.${ext}
+
+publish:
+  provider: github
+  owner: placeholder-owner
+  repo: mindpalace
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true

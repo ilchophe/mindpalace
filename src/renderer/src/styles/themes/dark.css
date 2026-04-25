@@ -1,0 +1,9 @@
+/* Catppuccin Mocha — default dark theme */
+:root {
+  --vault-bg: #1e1e2e;
+  --vault-surface: #2a2a3c;
+  --vault-border: #383851;
+  --vault-text: #cdd6f4;
+  --vault-muted: #6c7086;
+  --vault-accent: #cba6f7;
+}

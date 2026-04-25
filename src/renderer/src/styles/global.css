@@ -1,0 +1,41 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --vault-bg: #1e1e2e;
+  --vault-surface: #2a2a3c;
+  --vault-border: #383851;
+  --vault-text: #cdd6f4;
+  --vault-muted: #6c7086;
+  --vault-accent: #cba6f7;
+}
+
+.light {
+  --vault-bg: #eff1f5;
+  --vault-surface: #e6e9ef;
+  --vault-border: #ccd0da;
+  --vault-text: #4c4f69;
+  --vault-muted: #9ca0b0;
+  --vault-accent: #8839ef;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: system-ui, -apple-system, sans-serif;
+  background: var(--vault-bg);
+  color: var(--vault-text);
+}
