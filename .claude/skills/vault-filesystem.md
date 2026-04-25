@@ -68,8 +68,37 @@ registryStore.set('registry.activeVaultId', id)
 | `src/main/ipc/notes.ts` | IPC handler registrations for `notes:*` |
 | `src/types/index.ts` | `VaultConfig`, `VaultSummary`, `VaultRegistry`, `slugify()` |
 
+## Drag & Drop Move Pattern (renderer)
+```typescript
+// FileTree — src path stored in a ref, not state, to avoid re-renders
+const dragSrcRef = useRef<string | null>(null)
+
+function onDragStart(e, path) { dragSrcRef.current = path; e.dataTransfer.effectAllowed = 'move' }
+function onDragOver(e, path)  { e.preventDefault(); e.stopPropagation(); setDragOverPath(path) }
+
+async function onDrop(e, targetNode) {
+  e.preventDefault(); e.stopPropagation()
+  const src = dragSrcRef.current; dragSrcRef.current = null
+  const destFolder = targetNode.isFolder ? targetNode.path : targetNode.path.split('/').slice(0, -1).join('/')
+  const newPath = destFolder ? `${destFolder}/${src.split('/').pop()}` : src.split('/').pop()
+  if (src === newPath || newPath.startsWith(src + '/')) return   // guard self/descendant drop
+  await window.api.notes.rename(src, newPath)
+  renameItemPath(src, newPath)   // update open editor tabs
+  await loadNotes()
+}
+```
+
+### RENAME IPC — directory vs file
+```typescript
+const isDir = statSync(oldAbs).isDirectory()
+renameSync(oldAbs, newAbs)
+if (isDir) return   // chokidar fires add/unlink for all children; index auto-updates
+// file-only: rewrite image embeds, update index
+```
+
 ## Reuse Notes
 - `slugify()` is exported from `@shared` and safe to import in renderer too
 - `IndexService` degrades to `enabled = false` if `better-sqlite3` is unavailable; callers check `indexService.enabled`
 - `VaultService.close()` must be called before switching vaults (tears down watcher + SQLite)
 - `vault:registry-changed` push event is the single signal renderers should react to after any registry mutation
+- For folder moves, `renameSync` works natively; skip per-file index operations — chokidar handles them

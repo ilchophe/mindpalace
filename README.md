@@ -215,7 +215,7 @@ Notes are plain `.md` files in a folder you choose. A GitHub repo acts as the re
 - `MarkdownPreview` — async remark→rehype pipeline: GFM tables + task lists, KaTeX math (`$...$` / `$$...$$`), highlight.js syntax highlighting, `rehype-sanitize`
 - `PropertiesPanel` — collapsible YAML frontmatter editor (key/value pairs); reads+writes via gray-matter
 - `TabBar` — open tabs with dirty indicator and close button; activates nearest neighbour on close
-- `EditorPane` — split-view orchestrator: left Monaco + right preview with toggle toolbar
+- `EditorPane` — split-view orchestrator; breadcrumb path bar (`folder / subfolder / note`) with icon toggle (✎ Edit · ⬜⬜ Split · 👁 Reading); `renameItemPath` store action updates all open tab paths when a file/folder is moved
 - `markdownPipeline.ts` — singleton unified processor; safe for concurrent calls
 - `frontmatterParser.ts` — `parseFrontmatter()` / `stringifyFrontmatter()` via gray-matter
 - Vault switch closes all open tabs via `editorStore.closeAllTabs()`
@@ -228,7 +228,7 @@ Notes are plain `.md` files in a folder you choose. A GitHub repo acts as the re
 - `VaultManagerScreen` — full-screen overlay: vault card grid, filter/label/sort, new vault form, open existing
 - `VaultCard` — sync status badge, pin, context menu
 - `DeleteVaultModal` — typed confirmation + 3-second hold-to-confirm final step; optional GitHub repo deletion
-- `FileTree` — recursive tree with folder collapse, filter, live watcher updates; `📄+` / `📁+` header buttons create a note or folder inside the selected note's parent (or vault root); inline name input with Enter/Escape
+- `FileTree` — recursive tree with folder collapse, filter, live watcher updates; `📄+` / `📁+` header buttons create a note or folder; inline name input; **drag & drop** moves files and folders (drops onto folder = move inside; drops onto file = move to sibling; drops onto tree background = move to vault root); open tabs update their paths on move via `renameItemPath`
 - `vault:switch` IPC — tears down watcher + SQLite, re-opens new vault
 - `better-sqlite3` + `electron-rebuild` added; `@shared` alias exposed in both tsconfigs
 

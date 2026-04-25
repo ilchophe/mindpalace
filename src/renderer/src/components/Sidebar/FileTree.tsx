@@ -34,13 +34,11 @@ function buildTree(notes: NoteMetadata[], emptyFolders: string[]): TreeNode[] {
     const parentParts = parts.slice(0, -1)
     const parentNode = parentParts.length ? ensurePath(parentParts) : root
     const name = parts[parts.length - 1]
-    const existing = parentNode.children.find((c) => c.name === name)
-    if (!existing) {
+    if (!parentNode.children.find((c) => c.name === name)) {
       parentNode.children.push({ name, path: note.relativePath, isFolder: false, children: [], note })
     }
   }
 
-  // Ensure explicitly created empty folders exist in the tree
   for (const folderPath of emptyFolders) {
     const parts = folderPath.split('/').filter(Boolean)
     if (parts.length) ensurePath(parts)
@@ -58,28 +56,47 @@ function buildTree(notes: NoteMetadata[], emptyFolders: string[]): TreeNode[] {
   return sortNodes(root.children)
 }
 
+interface DragHandlers {
+  onDragStart: (e: React.DragEvent, path: string) => void
+  onDragOver: (e: React.DragEvent, path: string) => void
+  onDragLeave: (e: React.DragEvent) => void
+  onDrop: (e: React.DragEvent, node: TreeNode) => void
+  dragOverPath: string | null
+}
+
 interface TreeItemProps {
   node: TreeNode
   depth: number
   selectedPath: string | null
   onSelect: (note: NoteMetadata) => void
+  drag: DragHandlers
 }
 
-function TreeItem({ node, depth, selectedPath, onSelect }: TreeItemProps): React.JSX.Element {
+function TreeItem({ node, depth, selectedPath, onSelect, drag }: TreeItemProps): React.JSX.Element {
   const [open, setOpen] = useState(true)
   const isSelected = !node.isFolder && selectedPath === node.path
+  const isDragOver = drag.dragOverPath === node.path
   const indent = depth * 16
+
+  const baseClass = 'flex items-center gap-1 w-full py-[3px] pr-2 text-left text-sm rounded transition-colors cursor-grab'
+  const dragOverClass = isDragOver ? 'bg-vault-accent/20 ring-1 ring-vault-accent/50' : ''
 
   if (node.isFolder) {
     return (
-      <div>
+      <div
+        onDragOver={(e) => drag.onDragOver(e, node.path)}
+        onDragLeave={drag.onDragLeave}
+        onDrop={(e) => drag.onDrop(e, node)}
+      >
         <button
+          draggable
           style={{ paddingLeft: `${indent + 6}px` }}
-          className="flex items-center gap-1 w-full py-[3px] pr-2 text-left text-sm text-vault-muted hover:text-vault-text hover:bg-vault-border/30 rounded transition-colors"
+          className={[baseClass, dragOverClass, 'text-vault-muted hover:text-vault-text hover:bg-vault-border/30'].join(' ')}
+          onDragStart={(e) => drag.onDragStart(e, node.path)}
           onClick={() => setOpen((o) => !o)}
         >
           <span
-            className="text-[10px] text-vault-muted/70 transition-transform duration-100 inline-block"
+            className="text-[10px] text-vault-muted/70 transition-transform duration-100 inline-block flex-shrink-0"
             style={{ transform: open ? 'rotate(90deg)' : 'rotate(0deg)' }}
           >
             ›
@@ -93,6 +110,7 @@ function TreeItem({ node, depth, selectedPath, onSelect }: TreeItemProps): React
             depth={depth + 1}
             selectedPath={selectedPath}
             onSelect={onSelect}
+            drag={drag}
           />
         ))}
       </div>
@@ -101,13 +119,19 @@ function TreeItem({ node, depth, selectedPath, onSelect }: TreeItemProps): React
 
   return (
     <button
+      draggable
       style={{ paddingLeft: `${indent + 18}px` }}
       className={[
-        'flex items-center w-full py-[3px] pr-2 text-left text-sm rounded transition-colors',
+        baseClass,
+        dragOverClass,
         isSelected
           ? 'bg-vault-accent/20 text-vault-accent'
-          : 'text-vault-text hover:bg-vault-border/30'
+          : 'text-vault-text hover:bg-vault-border/30',
       ].join(' ')}
+      onDragStart={(e) => drag.onDragStart(e, node.path)}
+      onDragOver={(e) => drag.onDragOver(e, node.path)}
+      onDragLeave={drag.onDragLeave}
+      onDrop={(e) => drag.onDrop(e, node)}
       onClick={() => node.note && onSelect(node.note)}
     >
       <span className="truncate">{node.name.replace(/\.md$/, '')}</span>
@@ -117,13 +141,14 @@ function TreeItem({ node, depth, selectedPath, onSelect }: TreeItemProps): React
 
 export default function FileTree(): React.JSX.Element {
   const { notes, selectedNote, setSelectedNote, loadNotes, activeConfig } = useVaultStore()
-  const openTab = useEditorStore((s) => s.openTab)
+  const { openTab, renameItemPath } = useEditorStore()
   const [search, setSearch] = useState('')
   const [creating, setCreating] = useState<'note' | 'folder' | null>(null)
   const [newName, setNewName] = useState('')
   const newNameRef = useRef<HTMLInputElement>(null)
-  // Track explicitly created empty folders so they appear before any notes are added
   const [emptyFolders, setEmptyFolders] = useState<string[]>([])
+  const [dragOverPath, setDragOverPath] = useState<string | null>(null)
+  const dragSrcRef = useRef<string | null>(null)
 
   useEffect(() => {
     if (creating) newNameRef.current?.focus()
@@ -140,7 +165,6 @@ export default function FileTree(): React.JSX.Element {
     return () => { off1(); off2(); off3() }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Drop an empty-folder entry once it has notes in it
   useEffect(() => {
     setEmptyFolders((prev) =>
       prev.filter((f) => !notes.some((n) => n.relativePath.startsWith(f + '/')))
@@ -176,10 +200,7 @@ export default function FileTree(): React.JSX.Element {
         await window.api.notes.write(notePath, '')
         await loadNotes()
         const newNote = useVaultStore.getState().notes.find((n) => n.relativePath === notePath)
-        if (newNote) {
-          setSelectedNote(newNote)
-          openTab(newNote)
-        }
+        if (newNote) { setSelectedNote(newNote); openTab(newNote) }
       } else {
         await window.api.notes.createFolder(relPath)
         setEmptyFolders((prev) => [...prev, relPath])
@@ -195,6 +216,67 @@ export default function FileTree(): React.JSX.Element {
   function cancelCreate(): void {
     setCreating(null)
     setNewName('')
+  }
+
+  // ── Drag & drop ──────────────────────────────────────────────────────────
+
+  function handleDragStart(e: React.DragEvent, path: string): void {
+    dragSrcRef.current = path
+    e.dataTransfer.effectAllowed = 'move'
+    // Prevent the click-triggered folder toggle on drag start
+    e.stopPropagation()
+  }
+
+  function handleDragOver(e: React.DragEvent, path: string): void {
+    e.preventDefault()
+    e.stopPropagation()
+    e.dataTransfer.dropEffect = 'move'
+    setDragOverPath(path)
+  }
+
+  function handleDragLeave(e: React.DragEvent): void {
+    // Only clear if leaving to outside the tree entirely
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+      setDragOverPath(null)
+    }
+  }
+
+  async function handleDrop(e: React.DragEvent, targetNode: TreeNode): Promise<void> {
+    e.preventDefault()
+    e.stopPropagation()
+    setDragOverPath(null)
+
+    const src = dragSrcRef.current
+    dragSrcRef.current = null
+    if (!src) return
+
+    // Destination folder: drop onto folder → inside it; drop onto file → sibling
+    const destFolder = targetNode.isFolder
+      ? targetNode.path
+      : targetNode.path.split('/').slice(0, -1).join('/')
+
+    const srcName = src.split('/').pop()!
+    const newPath = destFolder ? `${destFolder}/${srcName}` : srcName
+
+    if (src === newPath) return
+    // Prevent dropping a folder into itself or a descendant
+    if (newPath.startsWith(src + '/')) return
+
+    try {
+      await window.api.notes.rename(src, newPath)
+      renameItemPath(src, newPath)
+      await loadNotes()
+    } catch (err) {
+      console.error('Move failed:', err)
+    }
+  }
+
+  const dragHandlers: DragHandlers = {
+    onDragStart: handleDragStart,
+    onDragOver: handleDragOver,
+    onDragLeave: handleDragLeave,
+    onDrop: handleDrop,
+    dragOverPath,
   }
 
   const filtered = useMemo(() => {
@@ -253,19 +335,8 @@ export default function FileTree(): React.JSX.Element {
               placeholder={creating === 'note' ? 'note-name' : 'folder-name'}
               className="flex-1 rounded border border-vault-accent bg-vault-bg px-2 py-1 text-xs text-vault-text outline-none placeholder:text-vault-muted"
             />
-            <button
-              type="submit"
-              className="rounded bg-vault-accent/20 hover:bg-vault-accent/30 px-2 py-1 text-xs text-vault-accent transition-colors"
-            >
-              ✓
-            </button>
-            <button
-              type="button"
-              onClick={cancelCreate}
-              className="rounded hover:bg-vault-border/40 px-2 py-1 text-xs text-vault-muted transition-colors"
-            >
-              ✕
-            </button>
+            <button type="submit" className="rounded bg-vault-accent/20 hover:bg-vault-accent/30 px-2 py-1 text-xs text-vault-accent transition-colors">✓</button>
+            <button type="button" onClick={cancelCreate} className="rounded hover:bg-vault-border/40 px-2 py-1 text-xs text-vault-muted transition-colors">✕</button>
           </form>
         </div>
       )}
@@ -282,7 +353,25 @@ export default function FileTree(): React.JSX.Element {
       </div>
 
       {/* Tree */}
-      <div className="flex-1 overflow-y-auto py-1">
+      <div
+        className="flex-1 overflow-y-auto py-1"
+        onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move' }}
+        onDrop={async (e) => {
+          // Drop onto the empty space below the tree = move to vault root
+          e.preventDefault()
+          const src = dragSrcRef.current
+          dragSrcRef.current = null
+          setDragOverPath(null)
+          if (!src) return
+          const srcName = src.split('/').pop()!
+          if (src === srcName) return
+          try {
+            await window.api.notes.rename(src, srcName)
+            renameItemPath(src, srcName)
+            await loadNotes()
+          } catch (err) { console.error('Move failed:', err) }
+        }}
+      >
         {tree.length === 0 ? (
           <p className="text-xs text-vault-muted px-3 py-4 text-center">
             {notes.length === 0 ? 'No notes yet' : 'No matches'}
@@ -295,6 +384,7 @@ export default function FileTree(): React.JSX.Element {
               depth={0}
               selectedPath={selectedNote?.relativePath ?? null}
               onSelect={handleNoteSelect}
+              drag={dragHandlers}
             />
           ))
         )}

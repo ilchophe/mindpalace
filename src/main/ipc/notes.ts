@@ -87,8 +87,13 @@ export function registerNotesHandlers(): void {
     const vaultPath = requireVaultPath()
     const oldAbs = join(vaultPath, oldRelPath)
     const newAbs = join(vaultPath, newRelPath)
-    mkdirSync(require('path').dirname(newAbs), { recursive: true })
+    mkdirSync(dirname(newAbs), { recursive: true })
+    const isDir = statSync(oldAbs).isDirectory()
     renameSync(oldAbs, newAbs)
+    if (isDir) {
+      // Chokidar will fire add/unlink for every file inside — index updates automatically
+      return
+    }
     // Rewrite image embed paths in the moved note
     try {
       const content = readFileSync(newAbs, 'utf8')
@@ -96,7 +101,7 @@ export function registerNotesHandlers(): void {
         const rewritten = imageService.rewritePaths(oldRelPath, newRelPath, content)
         if (rewritten !== content) writeFileSync(newAbs, rewritten, 'utf8')
       }
-    } catch { /* ignore — note may not be readable */ }
+    } catch { /* ignore */ }
     indexService.removeFile(oldAbs)
     indexService.indexFile(newAbs)
   })

@@ -23,6 +23,8 @@ interface EditorStore {
   setViewMode: (mode: ViewMode) => void
   saveTab: (id: string) => Promise<void>
   closeAllTabs: () => void
+  /** Update tab paths after a file or folder is moved via drag & drop. */
+  renameItemPath: (oldRelPath: string, newRelPath: string) => void
 }
 
 export const useEditorStore = create<EditorStore>((set, get) => ({
@@ -84,4 +86,19 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   },
 
   closeAllTabs: () => set({ tabs: [], activeTabId: null }),
+
+  renameItemPath: (oldRelPath, newRelPath) => {
+    set((s) => ({
+      tabs: s.tabs.map((t) => {
+        if (t.relativePath === oldRelPath) {
+          return { ...t, relativePath: newRelPath, title: newRelPath.split('/').pop()?.replace(/\.md$/, '') ?? newRelPath }
+        }
+        if (t.relativePath.startsWith(oldRelPath + '/')) {
+          const newPath = newRelPath + t.relativePath.slice(oldRelPath.length)
+          return { ...t, relativePath: newPath, title: newPath.split('/').pop()?.replace(/\.md$/, '') ?? newPath }
+        }
+        return t
+      }),
+    }))
+  },
 }))
