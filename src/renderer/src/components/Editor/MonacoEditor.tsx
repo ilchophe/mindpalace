@@ -1,6 +1,10 @@
 import React, { useCallback, useEffect, useRef } from 'react'
-import { Editor, type OnMount } from '@monaco-editor/react'
+import { Editor, loader, type OnMount } from '@monaco-editor/react'
+import * as monaco from 'monaco-editor'
 import { useEditorStore } from '../../stores/editorStore'
+
+// Use the locally bundled monaco-editor instead of the CDN default
+loader.config({ monaco })
 
 const SAVE_DELAY_MS = 1000
 
