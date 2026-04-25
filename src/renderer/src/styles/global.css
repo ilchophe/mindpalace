@@ -39,3 +39,41 @@ body {
   background: var(--vault-bg);
   color: var(--vault-text);
 }
+
+/* ── Shared component utilities ─────────────────────────────────────────── */
+
+.btn-primary {
+  @apply px-3 py-1.5 rounded-lg bg-[var(--vault-accent)] text-[var(--vault-bg)] text-sm font-medium
+         hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed;
+}
+
+.btn-secondary {
+  @apply px-3 py-1.5 rounded-lg border border-[var(--vault-border)] bg-[var(--vault-surface)]
+         text-[var(--vault-text)] text-sm hover:border-[var(--vault-accent)] transition-colors
+         disabled:opacity-40 disabled:cursor-not-allowed;
+}
+
+.btn-ghost {
+  @apply px-3 py-1.5 rounded-lg text-[var(--vault-muted)] text-sm hover:text-[var(--vault-text)]
+         hover:bg-[var(--vault-surface)] transition-colors;
+}
+
+.btn-danger {
+  @apply px-3 py-1.5 rounded-lg bg-red-600 text-white text-sm font-medium
+         hover:bg-red-500 transition-colors disabled:opacity-40 disabled:cursor-not-allowed;
+}
+
+.menu-item {
+  @apply w-full text-left px-3 py-1.5 text-sm text-[var(--vault-text)]
+         hover:bg-[var(--vault-border)] transition-colors cursor-pointer;
+}
+
+.label-chip {
+  @apply px-2 py-0.5 rounded-full text-xs border border-[var(--vault-border)]
+         text-[var(--vault-muted)] hover:border-[var(--vault-accent)] transition-colors cursor-pointer;
+}
+
+.label-chip-active {
+  @apply border-[var(--vault-accent)] text-[var(--vault-accent)];
+  background-color: rgb(from var(--vault-accent) r g b / 0.1);
+}

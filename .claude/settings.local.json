@@ -10,7 +10,16 @@
       "Bash(npm install *)",
       "Bash(npm test *)",
       "Bash(npm run *)",
-      "Bash(git add *)"
+      "Bash(git add *)",
+      "PowerShell(Get-ChildItem \"C:\\\\Program Files\\\\GitHub CLI\\\\\", \"C:\\\\Program Files \\(x86\\)\\\\GitHub CLI\\\\\", \"$env:LOCALAPPDATA\\\\Programs\\\\gh\\\\\" -ErrorAction SilentlyContinue | Select-Object FullName)",
+      "PowerShell($env:GITHUB_TOKEN; [System.Environment]::GetEnvironmentVariable\\(\"GITHUB_TOKEN\", \"User\"\\); [System.Environment]::GetEnvironmentVariable\\(\"GITHUB_TOKEN\", \"Machine\"\\))",
+      "Bash(git -C G:/aiprojects/MindPalace log --oneline -5)",
+      "Bash(git -C G:/aiprojects/MindPalace add README.md)",
+      "Bash(git -C G:/aiprojects/MindPalace commit -m ' *)",
+      "Bash(git -C G:/aiprojects/MindPalace add Plan.md src/types/index.ts README.md)",
+      "Bash(npx electron-rebuild *)",
+      "Bash(git -C G:/aiprojects/MindPalace add -A)",
+      "Bash(git -C G:/aiprojects/MindPalace status --short)"
     ]
   }
 }

@@ -5,6 +5,7 @@
     "composite": true,
     "paths": {
       "@renderer/*": ["./src/renderer/src/*"],
+      "@shared": ["./src/types/index.ts"],
       "@shared/*": ["./src/types/*"]
     }
   }

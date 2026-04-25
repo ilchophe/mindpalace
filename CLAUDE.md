@@ -66,7 +66,7 @@ Each skill: `.claude/skills/{skill-name}.md`
 ## Phase Status
 
 - [x] Phase 0 — Scaffold
-- [ ] Phase 1 — Vault Management & File Tree
+- [x] Phase 1 — Vault Management & File Tree
 - [ ] Phase 2 — Monaco Editor + Markdown Preview
 - [ ] Phase 3 — GitHub Auth & Git Sync
 - [ ] Phase 4 — Search, Quick Switcher & Tags

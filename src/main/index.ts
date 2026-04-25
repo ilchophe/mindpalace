@@ -1,6 +1,8 @@
 import { app, BrowserWindow, shell } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
+import { registerVaultHandlers } from './ipc/vault'
+import { registerNotesHandlers } from './ipc/notes'
 
 function createWindow(): void {
   const mainWindow = new BrowserWindow({
@@ -23,7 +25,7 @@ function createWindow(): void {
     mainWindow.show()
   })
 
-  mainWindow.webContents.setWindowOpenHandler(details => {
+  mainWindow.webContents.setWindowOpenHandler((details) => {
     shell.openExternal(details.url)
     return { action: 'deny' }
   })
@@ -41,6 +43,9 @@ app.whenReady().then(() => {
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)
   })
+
+  registerVaultHandlers()
+  registerNotesHandlers()
 
   createWindow()
 

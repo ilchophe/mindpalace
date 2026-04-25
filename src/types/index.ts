@@ -112,6 +112,23 @@ export interface SearchResult {
 }
 
 // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// Utilities (pure — safe to import in main and renderer)
+// ---------------------------------------------------------------------------
+
+/** Derives an immutable GitHub-safe repo slug from a vault display name. */
+export function slugify(name: string): string {
+  return name
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 100) || 'vault'
+}
+
+// ---------------------------------------------------------------------------
 // IPC channel constants — keeps renderer and main in sync
 // ---------------------------------------------------------------------------
 
@@ -139,6 +156,7 @@ export const IPC = {
     PIN:           'vault:pin',        // (vaultId, pinned: boolean)
     UPDATE_LABELS: 'vault:updateLabels', // (vaultId, labels: string[])
     DELETE:        'vault:delete',     // (VaultDeletePayload) → { success } | { error }
+    PICK_FOLDER:   'vault:pickFolder', // () → string | null
 
     // Push events (main → renderer)
     FILE_CHANGED:      'vault:file-changed',

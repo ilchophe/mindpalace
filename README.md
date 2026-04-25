@@ -11,9 +11,9 @@ Each vault maps 1:1 to a GitHub repository. Switch between as many independent v
 | Feature | Phase | Status |
 |---|---|---|
 | Electron scaffold + CI/CD | 0 | ✅ Done |
-| Vault Manager (multi-vault, switch, filter, delete) | 1 | 🔲 Next |
-| File tree + SQLite index | 1 | 🔲 Next |
-| Monaco editor + markdown preview | 2 | 🔲 Planned |
+| Vault Manager (multi-vault, switch, filter, delete) | 1 | ✅ Done |
+| File tree + SQLite index | 1 | ✅ Done |
+| Monaco editor + markdown preview | 2 | 🔲 Next |
 | GitHub auth (Device Flow) + git sync | 3 | 🔲 Planned |
 | Full-text search + quick switcher | 4 | 🔲 Planned |
 | Image handling + graph view + daily notes | 5 | 🔲 Planned |
@@ -163,6 +163,18 @@ Notes are plain `.md` files in a folder you choose. A GitHub repo acts as the re
 ---
 
 ## Phase Log
+
+### Phase 1 — Vault Management & File Tree ✅
+- `VaultService` — open/create/close vaults, `config.json` read/write
+- `VaultRegistry` — global electron-store registry of all vaults (`VaultSummary[]`)
+- `IndexService` — per-vault SQLite (FTS5) with graceful fallback if native build unavailable
+- chokidar file watcher → IPC push events (`vault:file-changed/created/deleted`)
+- `VaultManagerScreen` — full-screen overlay: vault card grid, filter/label/sort, new vault form, open existing
+- `VaultCard` — sync status badge, pin, context menu
+- `DeleteVaultModal` — typed confirmation + 3-second hold-to-confirm final step; optional GitHub repo deletion
+- `FileTree` — recursive tree with folder collapse, filter, live watcher updates
+- `vault:switch` IPC — tears down watcher + SQLite, re-opens new vault
+- `better-sqlite3` + `electron-rebuild` added; `@shared` alias exposed in both tsconfigs
 
 ### Phase 0 — Scaffold ✅
 - Electron 28 + electron-vite 2 skeleton

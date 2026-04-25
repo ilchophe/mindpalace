@@ -1,12 +1,21 @@
-import React from 'react'
+import React, { useEffect } from 'react'
+import { useVaultStore } from './stores/vaultStore'
+import MainLayout from './components/Layout/MainLayout'
 
 export default function App(): React.JSX.Element {
-  return (
-    <div className="flex h-screen w-screen bg-vault-bg text-vault-text">
-      <div className="flex flex-col items-center justify-center w-full gap-4">
-        <h1 className="text-4xl font-bold tracking-tight">MindPalace</h1>
-        <p className="text-vault-muted text-lg">Phase 0 scaffold — ready to build.</p>
-      </div>
-    </div>
-  )
+  const { loadRegistry, openManager } = useVaultStore()
+
+  useEffect(() => {
+    loadRegistry().then(() => {
+      // If no vault is active after loading, open the manager so the user can choose/create one.
+      const { activeVault } = useVaultStore.getState()
+      if (!activeVault) openManager()
+    })
+
+    // Re-load registry whenever main process signals a registry change
+    const off = window.api.vault.onRegistryChanged(() => loadRegistry())
+    return off
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  return <MainLayout />
 }
