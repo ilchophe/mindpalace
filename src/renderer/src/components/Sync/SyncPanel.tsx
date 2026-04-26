@@ -48,6 +48,13 @@ export default function SyncPanel(): React.JSX.Element | null {
             )}
           </div>
 
+          {/* Auto-sync interval label */}
+          {isConnected && (activeConfig.syncIntervalMinutes ?? 0) > 0 && (
+            <p className="text-[10px] text-vault-muted">
+              auto every {activeConfig.syncIntervalMinutes}m
+            </p>
+          )}
+
           {syncStatus.message && (
             <p className="text-[10px] text-red-400 truncate">{syncStatus.message}</p>
           )}

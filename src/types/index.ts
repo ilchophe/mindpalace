@@ -185,6 +185,24 @@ export interface CloneVaultPayload {
 }
 
 // ---------------------------------------------------------------------------
+// Import
+// ---------------------------------------------------------------------------
+
+export interface ImportProgress {
+  phase: 'scanning' | 'copying' | 'rewriting' | 'indexing' | 'done'
+  total: number
+  done: number
+  currentFile: string
+}
+
+export interface ImportResult {
+  notesImported: number
+  imagesImported: number
+  referencesRewritten: number
+  errors: string[]
+}
+
+// ---------------------------------------------------------------------------
 // Search
 // ---------------------------------------------------------------------------
 
@@ -248,7 +266,11 @@ export const IPC = {
     FILE_CHANGED:      'vault:file-changed',
     FILE_CREATED:      'vault:file-created',
     FILE_DELETED:      'vault:file-deleted',
-    REGISTRY_CHANGED:  'vault:registry-changed' // fires after any registry mutation
+    REGISTRY_CHANGED:  'vault:registry-changed', // fires after any registry mutation
+
+    // Import
+    IMPORT_FOLDER:   'vault:importFolder',
+    IMPORT_PROGRESS: 'vault:importProgress',     // pushed event (webContents.send)
   },
 
   NOTES: {
@@ -285,6 +307,7 @@ export const IPC = {
     CREATE_GITHUB_REPO:  'git:createGitHubRepo',
     LIST_GITHUB_REPOS:   'git:listGitHubRepos',
     CLONE_VAULT:         'git:cloneVault',
+    SET_SYNC_INTERVAL:   'git:setSyncInterval',
     // Push events
     SYNC_STATUS:         'git:sync-status',
     CONFLICT_DETECTED:   'git:conflict-detected'

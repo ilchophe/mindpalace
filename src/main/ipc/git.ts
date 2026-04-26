@@ -155,6 +155,15 @@ export function registerGitHandlers(): void {
     return { githubRepo, cloneUrl }
   })
 
+  // ── Set sync interval ────────────────────────────────────────────────────
+
+  ipcMain.handle(IPC.GIT.SET_SYNC_INTERVAL, (_e, minutes: number) => {
+    requireConfig() // throws if no active vault
+    const updated = vaultService.updateConfig({ syncIntervalMinutes: minutes })
+    syncService.restartAutoSync(updated)
+    return updated
+  })
+
   // ── List user's GitHub repos ─────────────────────────────────────────────
 
   ipcMain.handle(IPC.GIT.LIST_GITHUB_REPOS, async () => {

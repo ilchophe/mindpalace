@@ -38,6 +38,13 @@ const api = {
       const handler = (): void => cb()
       ipcRenderer.on(IPC.VAULT.REGISTRY_CHANGED, handler)
       return () => ipcRenderer.off(IPC.VAULT.REGISTRY_CHANGED, handler)
+    },
+
+    importFolder: (sourcePath: string) => ipcRenderer.invoke(IPC.VAULT.IMPORT_FOLDER, sourcePath),
+    onImportProgress: (cb: (p: unknown) => void) => {
+      const handler = (_: Electron.IpcRendererEvent, p: unknown): void => cb(p)
+      ipcRenderer.on(IPC.VAULT.IMPORT_PROGRESS, handler)
+      return () => ipcRenderer.off(IPC.VAULT.IMPORT_PROGRESS, handler)
     }
   },
 
@@ -74,6 +81,8 @@ const api = {
     listGitHubRepos: () => ipcRenderer.invoke(IPC.GIT.LIST_GITHUB_REPOS),
     resolveConflict: (filepath: string, resolution: 'ours' | 'theirs') =>
       ipcRenderer.invoke(IPC.GIT.RESOLVE_CONFLICT, filepath, resolution),
+    setSyncInterval: (minutes: number) =>
+      ipcRenderer.invoke(IPC.GIT.SET_SYNC_INTERVAL, minutes),
 
     onSyncStatus: (cb: (payload: unknown) => void) => {
       const handler = (_: Electron.IpcRendererEvent, payload: unknown): void => cb(payload)

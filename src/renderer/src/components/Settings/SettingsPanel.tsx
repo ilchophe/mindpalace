@@ -241,18 +241,21 @@ function SyncTab({
             <span className="text-sm text-vault-muted">Commit and push 30 s after saving</span>
           </label>
         </Row>
-        <Row label="Sync interval (min)">
-          <input
-            type="number"
-            min={0}
-            max={60}
+        <Row label="Auto-sync interval">
+          <select
             value={config.syncIntervalMinutes ?? 0}
-            onChange={(e) =>
-              set({ ...config, syncIntervalMinutes: Math.max(0, parseInt(e.target.value) || 0) })
-            }
-            className="w-24 bg-vault-bg border border-vault-border rounded-lg px-3 py-1.5 text-sm text-vault-text outline-none focus:border-vault-accent transition-colors"
-          />
-          <p className="text-xs text-vault-muted mt-1">Set to 0 to disable interval sync.</p>
+            onChange={(e) => set({ ...config, syncIntervalMinutes: Number(e.target.value) })}
+            className="rounded-lg border border-vault-border bg-vault-surface px-3 py-1.5 text-sm text-vault-text outline-none focus:border-vault-accent transition-colors"
+          >
+            <option value={0}>Never</option>
+            <option value={5}>Every 5 min</option>
+            <option value={15}>Every 15 min</option>
+            <option value={30}>Every 30 min</option>
+            <option value={60}>Every hour</option>
+          </select>
+          <p className="text-xs text-vault-muted mt-1">
+            Automatically commit and push to GitHub on this schedule.
+          </p>
         </Row>
       </Section>
     </>
@@ -279,7 +282,16 @@ export default function SettingsPanel(): React.JSX.Element {
   async function save(): Promise<void> {
     setSaving(true)
     try {
-      if (activeConfig) await window.api.vault.updateConfig(config)
+      if (activeConfig) {
+        await window.api.vault.updateConfig(config)
+        // If the interval changed, tell main process to restart the timer immediately
+        if (
+          config.syncIntervalMinutes !== undefined &&
+          config.syncIntervalMinutes !== activeConfig.syncIntervalMinutes
+        ) {
+          await window.api.git.setSyncInterval(config.syncIntervalMinutes)
+        }
+      }
       if (clientId !== (authStatus?.clientId ?? '')) await saveClientId(clientId)
       await loadRegistry()
       setSaved(true)
