@@ -5,6 +5,8 @@ import { vaultService } from '../services/VaultService'
 import { vaultRegistry } from '../services/VaultRegistry'
 import { authService } from '../services/AuthService'
 import { gitService } from '../services/GitService'
+import { importService } from '../services/ImportService'
+import { searchService } from '../services/SearchService'
 
 function broadcast(channel: string, ...args: unknown[]): void {
   BrowserWindow.getAllWindows().forEach((w) => w.webContents.send(channel, ...args))
@@ -125,5 +127,29 @@ export function registerVaultHandlers(): void {
       title: 'Choose vault location'
     })
     return result.canceled ? null : result.filePaths[0]
+  })
+
+  // ---------------------------------------------------------------------------
+  // Import folder (Obsidian vault or any folder)
+  // ---------------------------------------------------------------------------
+
+  ipcMain.handle(IPC.VAULT.IMPORT_FOLDER, async (event, sourcePath: string) => {
+    const config = vaultService.getActiveConfig()
+    if (!config) throw new Error('No active vault')
+
+    const result = await importService.importFolder(
+      sourcePath,
+      config.localPath,
+      config.imageSubfolderName,
+      (progress) => event.sender.send(IPC.VAULT.IMPORT_PROGRESS, progress)
+    )
+
+    // Rebuild the search index so imported notes are immediately searchable
+    searchService.reindexVault(config.localPath)
+
+    // Notify renderer to refresh the file tree
+    broadcast(IPC.VAULT.REGISTRY_CHANGED)
+
+    return result
   })
 }

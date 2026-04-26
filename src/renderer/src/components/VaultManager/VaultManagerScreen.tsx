@@ -1,10 +1,11 @@
 import React, { useState, useMemo } from 'react'
-import { FolderOpen, Plus, X, Database } from 'lucide-react'
+import { FolderOpen, Plus, X, Database, Upload } from 'lucide-react'
 import type { VaultSummary } from '@shared'
 import { slugify } from '@shared'
 import { useVaultStore } from '../../stores/vaultStore'
 import VaultCard from './VaultCard'
 import DeleteVaultModal from './DeleteVaultModal'
+import ImportFolderModal from './ImportFolderModal'
 
 type SortKey = 'lastOpened' | 'name' | 'noteCount' | 'created'
 
@@ -35,6 +36,7 @@ export default function VaultManagerScreen(): React.JSX.Element {
   const [sortKey, setSortKey] = useState<SortKey>('lastOpened')
   const [activeLabel, setActiveLabel] = useState<string | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<VaultSummary | null>(null)
+  const [showImportModal, setShowImportModal] = useState(false)
   const [showNewForm, setShowNewForm] = useState(false)
   const [newVault, setNewVault] = useState<NewVaultFormState>({ name: '', parentDir: '' })
   const [newVaultError, setNewVaultError] = useState('')
@@ -89,6 +91,13 @@ export default function VaultManagerScreen(): React.JSX.Element {
           <button className="btn-secondary flex items-center gap-1.5" onClick={handlePickAndOpen}>
             <FolderOpen size={14} />
             Open existing
+          </button>
+          <button
+            className="btn-secondary flex items-center gap-1.5"
+            onClick={() => setShowImportModal(true)}
+          >
+            <Upload size={14} />
+            Import folder
           </button>
           <button className="btn-primary flex items-center gap-1.5" onClick={() => setShowNewForm(true)}>
             <Plus size={14} />
@@ -220,6 +229,11 @@ export default function VaultManagerScreen(): React.JSX.Element {
           vault={deleteTarget}
           onClose={() => setDeleteTarget(null)}
         />
+      )}
+
+      {/* Import folder modal */}
+      {showImportModal && (
+        <ImportFolderModal onClose={() => setShowImportModal(false)} />
       )}
     </div>
   )

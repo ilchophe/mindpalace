@@ -87,10 +87,8 @@ class SyncService {
   startAutoSync(config: VaultConfig): void {
     this.stopAutoSync()
     if (config.syncIntervalMinutes > 0) {
-      this.intervalTimer = setInterval(
-        () => this.syncNow(config),
-        config.syncIntervalMinutes * 60 * 1000
-      )
+      const ms = config.syncIntervalMinutes * 60_000
+      this.intervalTimer = setInterval(() => this.syncNow(config), ms)
     }
   }
 
@@ -103,6 +101,11 @@ class SyncService {
       clearTimeout(this.debounceTimer)
       this.debounceTimer = null
     }
+  }
+
+  restartAutoSync(config: VaultConfig): void {
+    this.stopAutoSync()
+    this.startAutoSync(config)
   }
 }
 

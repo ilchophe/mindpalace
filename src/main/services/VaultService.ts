@@ -50,6 +50,8 @@ class VaultService {
     if (existsSync(configPath)) {
       config = JSON.parse(readFileSync(configPath, 'utf8')) as VaultConfig
       config.localPath = localPath
+      // Migration: default syncIntervalMinutes for pre-existing vaults that lack the field
+      config.syncIntervalMinutes ??= 5
     } else {
       const id = randomUUID()
       const name = basename(localPath)

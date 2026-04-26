@@ -13,7 +13,9 @@ import type {
   SyncStatusPayload,
   ConnectRemotePayload,
   CloneVaultPayload,
-  SearchResult
+  SearchResult,
+  ImportProgress,
+  ImportResult
 } from '../../types'
 
 declare global {
@@ -37,6 +39,8 @@ declare global {
         onFileCreated: (cb: (path: string) => void) => () => void
         onFileDeleted: (cb: (path: string) => void) => () => void
         onRegistryChanged: (cb: () => void) => () => void
+        importFolder: (sourcePath: string) => Promise<ImportResult>
+        onImportProgress: (cb: (p: ImportProgress) => void) => () => void
       }
       notes: {
         list: () => Promise<NoteMetadata[]>
@@ -65,6 +69,7 @@ declare global {
         connectRemote: (payload: ConnectRemotePayload) => Promise<{ githubRepo: string | null; cloneUrl: string }>
         listGitHubRepos: () => Promise<GitHubRepo[]>
         resolveConflict: (filepath: string, resolution: 'ours' | 'theirs') => Promise<void>
+        setSyncInterval: (minutes: number) => Promise<VaultConfig>
         onSyncStatus: (cb: (payload: SyncStatusPayload) => void) => () => void
         onConflictDetected: (cb: (conflicts: string[]) => void) => () => void
       }

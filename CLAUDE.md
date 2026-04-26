@@ -73,8 +73,8 @@ Each skill: `.claude/skills/{skill-name}.md`
 - [x] Phase 5 — Images, Graph View & Daily Notes
 - [x] Phase 6 — Command Palette, Settings & Packaging
 - [x] Post-6 — CM6 live preview, vault-file:// protocol, Lucide icons, context menu, Electron-safe dialogs
-- [ ] Phase 7a — Configurable Auto-Sync (user-selectable interval: Never / 5 / 15 / 30 min / 1 hour)
-- [ ] Phase 7b — Vault Import (import Obsidian or any folder: copy images, rewrite wiki-link embeds, rebuild index)
+- [x] Phase 7a — Configurable Auto-Sync (user-selectable interval: Never / 5 / 15 / 30 min / 1 hour)
+- [x] Phase 7b — Vault Import (import Obsidian or any folder: copy images, rewrite wiki-link embeds, rebuild index)
 
 ## Phase 7 Specs
 
