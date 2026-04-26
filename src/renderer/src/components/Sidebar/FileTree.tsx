@@ -146,8 +146,23 @@ function RenameInput({
   onCancel: () => void
 }): React.JSX.Element {
   const [value, setValue] = useState(initialValue)
-  // Guard against double-submit (Enter → blur both fire)
+  const inputRef = useRef<HTMLInputElement>(null)
+  // Prevents double-submit when Enter fires commit() then blur also fires
   const submittedRef = useRef(false)
+  // Only commit on blur if the user actually typed something
+  const dirtyRef = useRef(false)
+
+  // autoFocus is set as a prop, but in Chromium the focus may not land when
+  // the element is mounted immediately after a context-menu click (the browser
+  // is still processing that click's event chain).  A 0-ms timeout fires after
+  // the current task finishes, guaranteeing we win the focus race.
+  useEffect(() => {
+    const t = setTimeout(() => {
+      inputRef.current?.focus()
+      inputRef.current?.select()
+    }, 0)
+    return () => clearTimeout(t)
+  }, [])
 
   function commit(): void {
     if (submittedRef.current) return
@@ -157,16 +172,18 @@ function RenameInput({
 
   return (
     <input
-      // autoFocus avoids the need for a setTimeout + ref.select()
-      // and works correctly outside a <button> wrapper
+      ref={inputRef}
       autoFocus
       value={value}
-      onChange={(e) => setValue(e.target.value)}
+      onChange={(e) => { setValue(e.target.value); dirtyRef.current = true }}
       onKeyDown={(e) => {
         if (e.key === 'Enter') { e.preventDefault(); commit() }
         if (e.key === 'Escape') { e.preventDefault(); onCancel() }
       }}
-      onBlur={commit}   // commit on click-away, like VS Code / Obsidian
+      // Only commit on blur when the user changed the value; otherwise cancel.
+      // This prevents an immediate blur (before the timeout focus fires)
+      // from submitting the unchanged name, which would look like nothing happened.
+      onBlur={() => dirtyRef.current ? commit() : onCancel()}
       className="flex-1 rounded border border-vault-accent bg-vault-bg px-1.5 py-0 text-xs text-vault-text outline-none min-w-0"
       onClick={(e) => e.stopPropagation()}
     />
@@ -418,18 +435,30 @@ export default function FileTree(): React.JSX.Element {
     setRenamingPath(null)
     const trimmed = newName.trim()
     if (!trimmed) return
+
     const parts = oldPath.split('/')
-    const isFile = oldPath.endsWith('.md')
-    const newBaseName = isFile
-      ? (trimmed.endsWith('.md') ? trimmed : `${trimmed}.md`)
-      : trimmed
+    const oldBaseName = parts[parts.length - 1]
+    const isNote = oldPath.endsWith('.md')
+
+    let newBaseName: string
+    if (isNote) {
+      newBaseName = trimmed.endsWith('.md') ? trimmed : `${trimmed}.md`
+    } else {
+      // For assets: preserve extension if the user didn't type one
+      const extMatch = oldBaseName.match(/(\.[^.]+)$/)
+      const ext = extMatch ? extMatch[1] : ''
+      newBaseName = ext && !trimmed.endsWith(ext) ? `${trimmed}${ext}` : trimmed
+    }
+
     parts[parts.length - 1] = newBaseName
     const newPath = parts.join('/')
     if (newPath === oldPath) return
+
     try {
       await window.api.notes.rename(oldPath, newPath)
       renameItemPath(oldPath, newPath)
       await loadNotes()
+      await loadAssets()   // refresh asset tree after rename
     } catch (err) {
       console.error('Rename failed:', err)
     }

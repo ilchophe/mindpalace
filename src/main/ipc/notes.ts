@@ -85,6 +85,56 @@ function walkMdFiles(dir: string, vaultPath: string): NoteMetadata[] {
   return results
 }
 
+/**
+ * Scan every .md file in the vault and rewrite any markdown link or image embed
+ * that points to `oldRelPath` so it points to `newRelPath` instead.
+ * Paths in markdown are relative to the note's directory, so we resolve each
+ * href to an absolute path before comparing.
+ */
+function rewriteReferencesInVault(
+  vaultPath: string,
+  oldRelPath: string,
+  newRelPath: string,
+): void {
+  const oldAbs = join(vaultPath, oldRelPath)
+  const newAbs = join(vaultPath, newRelPath)
+  const notes = walkMdFiles(vaultPath, vaultPath)
+
+  for (const note of notes) {
+    // Skip the file that was just renamed (already handled by the caller)
+    const noteAbs = join(vaultPath, note.relativePath)
+    if (noteAbs === newAbs) continue
+
+    let content: string
+    try { content = readFileSync(noteAbs, 'utf8') } catch { continue }
+
+    const noteDir = dirname(noteAbs)
+    let changed = false
+
+    const updated = content.replace(
+      /(!?\[[^\]]*\])\(([^)]+)\)/g,
+      (match, prefix, href) => {
+        if (/^https?:\/\/|^vault-file:/.test(href)) return match
+        // Decode percent-encoded chars (e.g. %20 → space) before resolving
+        const decoded = href.includes('%') ? decodeURIComponent(href) : href
+        const resolvedAbs = join(noteDir, decoded)
+        if (resolvedAbs !== oldAbs) return match
+        // Compute new relative path and normalise to forward slashes
+        const newHref = relative(noteDir, newAbs).replace(/\\/g, '/')
+        changed = true
+        return `${prefix}(${newHref})`
+      }
+    )
+
+    if (changed) {
+      try {
+        writeFileSync(noteAbs, updated, 'utf8')
+        indexService.indexFile(noteAbs)
+      } catch { /* ignore */ }
+    }
+  }
+}
+
 export function registerNotesHandlers(): void {
   ipcMain.handle(IPC.NOTES.LIST, () => {
     const vaultPath = requireVaultPath()
@@ -123,7 +173,7 @@ export function registerNotesHandlers(): void {
       // Chokidar will fire add/unlink for every file inside — index updates automatically
       return
     }
-    // Rewrite image embed paths in the moved note
+    // 1. Rewrite image embed paths inside the renamed note itself (if it's a .md)
     try {
       const content = readFileSync(newAbs, 'utf8')
       if (content.includes('![')) {
@@ -131,6 +181,8 @@ export function registerNotesHandlers(): void {
         if (rewritten !== content) writeFileSync(newAbs, rewritten, 'utf8')
       }
     } catch { /* ignore */ }
+    // 2. Update every other .md file that links to the renamed file
+    rewriteReferencesInVault(vaultPath, oldRelPath, newRelPath)
     indexService.removeFile(oldAbs)
     indexService.indexFile(newAbs)
   })

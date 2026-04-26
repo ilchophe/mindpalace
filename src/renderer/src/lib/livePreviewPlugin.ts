@@ -11,13 +11,44 @@
  * between preview and raw-edit appearance.
  */
 
-import { Decoration, type DecorationSet, EditorView, WidgetType } from '@codemirror/view'
+import { Decoration, type DecorationSet, EditorView, WidgetType, ViewPlugin } from '@codemirror/view'
 import { syntaxHighlighting, HighlightStyle } from '@codemirror/language'
 import { syntaxTree } from '@codemirror/language'
-import { StateField, Facet, type Extension } from '@codemirror/state'
+import { StateField, StateEffect, Facet, type Extension } from '@codemirror/state'
 import type { EditorState } from '@codemirror/state'
 import type { Range } from '@codemirror/state'
 import { tags } from '@lezer/highlight'
+
+// ── Focus tracking ────────────────────────────────────────────────────────────
+// Edit mode (showing raw markdown) only activates when the editor has focus
+// AND the cursor is on that specific construct.  When unfocused (e.g. when
+// the file first opens) every heading/code block/image renders in preview.
+
+const focusEffect = StateEffect.define<boolean>()
+
+const focusField = StateField.define<boolean>({
+  create: () => false,
+  update(focused, tr) {
+    for (const e of tr.effects) {
+      if (e.is(focusEffect)) return e.value
+    }
+    return focused
+  }
+})
+
+const focusTracker = ViewPlugin.fromClass(
+  class { constructor(readonly view: EditorView) {} },
+  {
+    eventHandlers: {
+      focus(_e: FocusEvent, view: EditorView) {
+        view.dispatch({ effects: focusEffect.of(true) })
+      },
+      blur(_e: FocusEvent, view: EditorView) {
+        view.dispatch({ effects: focusEffect.of(false) })
+      }
+    }
+  }
+)
 
 // ── highlight.js (syntax highlighting inside fenced code blocks) ─────────────
 import hljs from 'highlight.js/lib/core'
@@ -206,6 +237,8 @@ class ImageWidget extends WidgetType {
 function buildDecorations(state: EditorState): DecorationSet {
   const deco: Range<Decoration>[] = []
   const noteCtx = state.facet(noteContextFacet)
+  // Only switch to raw/edit mode when the editor is focused; unfocused = full preview
+  const isFocused = state.field(focusField, false) ?? false
 
   try {
     syntaxTree(state).iterate({
@@ -217,7 +250,7 @@ function buildDecorations(state: EditorState): DecorationSet {
           // Use the heading's own line end (not node.to which includes \n)
           // so cursor on the *next* line does not keep this heading in raw mode
           const lineEnd = state.doc.lineAt(from).to
-          if (cursorOverlaps(state, from, lineEnd)) return false
+          if (isFocused && cursorOverlaps(state, from, lineEnd)) return false
 
           const level = parseInt(name.slice(-1), 10)
           const markerLen = level + 1 // e.g. "## " = 2 + 1 space
@@ -234,7 +267,7 @@ function buildDecorations(state: EditorState): DecorationSet {
 
         // ── Fenced code blocks ───────────────────────────────────────────────
         if (name === 'FencedCode') {
-          if (cursorOverlaps(state, from, to)) return false
+          if (isFocused && cursorOverlaps(state, from, to)) return false
 
           const text = state.sliceDoc(from, to)
           const lines = text.split('\n')
@@ -257,7 +290,7 @@ function buildDecorations(state: EditorState): DecorationSet {
 
         // ── Inline code ──────────────────────────────────────────────────────
         if (name === 'InlineCode') {
-          if (cursorOverlaps(state, from, to)) return false
+          if (isFocused && cursorOverlaps(state, from, to)) return false
 
           const text = state.sliceDoc(from, to)
           const fenceMatch = text.match(/^(`+)/)
@@ -273,7 +306,7 @@ function buildDecorations(state: EditorState): DecorationSet {
 
         // ── Strong emphasis (**bold** / __bold__) ────────────────────────────
         if (name === 'StrongEmphasis') {
-          if (cursorOverlaps(state, from, to)) return false
+          if (isFocused && cursorOverlaps(state, from, to)) return false
 
           const mLen = 2
           if (from + mLen < to - mLen) {
@@ -286,7 +319,7 @@ function buildDecorations(state: EditorState): DecorationSet {
 
         // ── Emphasis (*italic* / _italic_) ───────────────────────────────────
         if (name === 'Emphasis') {
-          if (cursorOverlaps(state, from, to)) return false
+          if (isFocused && cursorOverlaps(state, from, to)) return false
 
           if (from + 1 < to - 1) {
             deco.push(Decoration.replace({}).range(from, from + 1))
@@ -298,7 +331,7 @@ function buildDecorations(state: EditorState): DecorationSet {
 
         // ── Links [text](url) ────────────────────────────────────────────────
         if (name === 'Link') {
-          if (cursorOverlaps(state, from, to)) return false
+          if (isFocused && cursorOverlaps(state, from, to)) return false
 
           const text = state.sliceDoc(from, to)
           const match = text.match(/^\[([^\]]*)\]\(([^)]*)\)$/)
@@ -316,7 +349,7 @@ function buildDecorations(state: EditorState): DecorationSet {
 
         // ── Images ![alt](src) ───────────────────────────────────────────────
         if (name === 'Image') {
-          if (cursorOverlaps(state, from, to)) return false
+          if (isFocused && cursorOverlaps(state, from, to)) return false
 
           const text = state.sliceDoc(from, to)
           const match = text.match(/^!\[([^\]]*)\]\(([^)]*)\)$/)
@@ -335,7 +368,7 @@ function buildDecorations(state: EditorState): DecorationSet {
 
         // ── Horizontal rule ──────────────────────────────────────────────────
         if (name === 'HorizontalRule') {
-          if (cursorOverlaps(state, from, to)) return false
+          if (isFocused && cursorOverlaps(state, from, to)) return false
 
           const startLine = state.doc.lineAt(from)
           const endLine = state.doc.lineAt(Math.max(from, to - 1))
@@ -369,7 +402,7 @@ function buildDecorations(state: EditorState): DecorationSet {
     const from = im.index
     const to   = from + im[0].length
     if (occupied.has(`${from}:${to}`)) continue               // already decorated
-    if (cursorOverlaps(state, from, to)) continue
+    if (isFocused && cursorOverlaps(state, from, to)) continue
     const resolvedUrl = toVaultFileUrl(noteCtx, src)
     deco.push(
       Decoration.replace({
@@ -387,13 +420,16 @@ function buildDecorations(state: EditorState): DecorationSet {
 const livePreviewField = StateField.define<DecorationSet>({
   create: buildDecorations,
   update(deco, tr) {
-    if (tr.docChanged || tr.selection) return buildDecorations(tr.state)
+    const focusChanged = tr.effects.some(e => e.is(focusEffect))
+    if (tr.docChanged || tr.selection || focusChanged) return buildDecorations(tr.state)
     return deco
   },
   provide: (f) => EditorView.decorations.from(f),
 })
 
-export const livePreviewPlugin: Extension = livePreviewField
+// focusField and focusTracker must come BEFORE livePreviewField in the extension
+// list so the field is registered in the state when livePreviewField first reads it.
+export const livePreviewPlugin: Extension = [focusField, focusTracker, livePreviewField]
 
 // ── Syntax highlight style (raw text when cursor is inside a construct) ───────
 
