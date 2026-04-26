@@ -17,3 +17,6 @@ Each skill captures the key pattern so it can be applied to new projects.
 | [d3-force-graph](./d3-force-graph.md) | 5 | D3.js v7 force-directed backlink graph in a React component |
 | [electron-builder-packaging](./electron-builder-packaging.md) | 6 | Multi-platform builds + GitHub Actions release workflow + auto-update |
 | [command-palette-pattern](./command-palette-pattern.md) | 6 | Fuzzy command palette (Ctrl+Shift+P) with Zustand action registry |
+| [codemirror-live-preview](./codemirror-live-preview.md) | post-6 | CM6 StateField live preview: headings, bold, italic, code blocks, images, HR |
+| [electron-custom-protocol](./electron-custom-protocol.md) | post-6 | vault-file:// custom Electron protocol for serving local vault assets |
+| [filetree-context-menu](./filetree-context-menu.md) | post-6 | Right-click context menu with inline rename, delete, show in explorer |

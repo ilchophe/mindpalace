@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react'
+import { MoreHorizontal, Pin, CheckCircle2, ArrowDown, ArrowUp, AlertTriangle, XCircle, Circle, type LucideIcon } from 'lucide-react'
 import type { VaultSummary } from '@shared'
 import { useVaultStore } from '../../stores/vaultStore'
 
@@ -8,13 +9,14 @@ interface Props {
   onDeleteRequest: (vault: VaultSummary) => void
 }
 
-const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
-  idle:         { label: '● synced',    cls: 'text-green-400' },
-  pulling:      { label: '↓ pulling',   cls: 'text-blue-400 animate-pulse' },
-  pushing:      { label: '↑ pushing',   cls: 'text-blue-400 animate-pulse' },
-  conflict:     { label: '⚠ conflict',  cls: 'text-yellow-400' },
-  error:        { label: '✗ error',     cls: 'text-red-400' },
-  disconnected: { label: '○ local only', cls: 'text-vault-muted' }
+type StatusBadge = { label: string; cls: string; Icon: LucideIcon }
+const STATUS_BADGE: Record<string, StatusBadge> = {
+  idle:         { label: 'Synced',      cls: 'text-green-400',                    Icon: CheckCircle2 },
+  pulling:      { label: 'Pulling…',    cls: 'text-blue-400 animate-pulse',       Icon: ArrowDown },
+  pushing:      { label: 'Pushing…',    cls: 'text-blue-400 animate-pulse',       Icon: ArrowUp },
+  conflict:     { label: 'Conflict',    cls: 'text-yellow-400',                   Icon: AlertTriangle },
+  error:        { label: 'Error',       cls: 'text-red-400',                      Icon: XCircle },
+  disconnected: { label: 'Local only',  cls: 'text-vault-muted',                  Icon: Circle }
 }
 
 function timeAgo(iso: string | null): string {
@@ -55,8 +57,8 @@ export default function VaultCard({ vault, isActive, onDeleteRequest }: Props): 
     >
       {/* Pin indicator */}
       {vault.isPinned && (
-        <span className="absolute top-2 right-8 text-vault-accent text-xs select-none" title="Pinned">
-          📌
+        <span className="absolute top-2.5 right-9 text-vault-accent select-none" title="Pinned">
+          <Pin size={12} />
         </span>
       )}
 
@@ -66,7 +68,7 @@ export default function VaultCard({ vault, isActive, onDeleteRequest }: Props): 
         onClick={(e) => { e.stopPropagation(); setMenuOpen((o) => !o) }}
         aria-label="Vault options"
       >
-        ⋯
+        <MoreHorizontal size={14} />
       </button>
 
       {/* Context menu */}
@@ -105,7 +107,10 @@ export default function VaultCard({ vault, isActive, onDeleteRequest }: Props): 
 
       <div className="flex items-center justify-between mt-auto">
         <span className="text-xs text-vault-muted">{vault.noteCount} notes</span>
-        <span className={`text-xs ${badge.cls}`}>{badge.label}</span>
+        <span className={`flex items-center gap-1 text-xs ${badge.cls}`}>
+          <badge.Icon size={11} />
+          {badge.label}
+        </span>
       </div>
 
       <p className="text-xs text-vault-muted">

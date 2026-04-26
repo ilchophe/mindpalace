@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react'
+import { Search, FileText } from 'lucide-react'
 import { useEditorStore } from '../../stores/editorStore'
 import type { SearchResult } from '@shared'
 
@@ -89,14 +90,17 @@ export default function QuickSwitcher({ onClose }: Props): React.JSX.Element {
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
       <div className="w-full max-w-xl bg-vault-surface border border-vault-border rounded-lg shadow-2xl overflow-hidden">
-        <input
-          ref={inputRef}
-          value={query}
-          onChange={handleChange}
-          onKeyDown={handleKeyDown}
-          placeholder="Search notes…"
-          className="w-full px-4 py-3 bg-transparent text-vault-text placeholder-vault-muted text-sm outline-none border-b border-vault-border"
-        />
+        <div className="flex items-center border-b border-vault-border px-4">
+          <Search size={14} className="text-vault-muted flex-shrink-0 mr-2" />
+          <input
+            ref={inputRef}
+            value={query}
+            onChange={handleChange}
+            onKeyDown={handleKeyDown}
+            placeholder="Search notes…"
+            className="flex-1 py-3 bg-transparent text-vault-text placeholder-vault-muted text-sm outline-none"
+          />
+        </div>
 
         {results.length > 0 ? (
           <ul className="max-h-80 overflow-y-auto">
@@ -104,18 +108,21 @@ export default function QuickSwitcher({ onClose }: Props): React.JSX.Element {
               <li
                 key={r.id}
                 className={[
-                  'px-4 py-2 cursor-pointer flex flex-col gap-0.5',
+                  'px-4 py-2 cursor-pointer flex items-start gap-2.5',
                   i === selected ? 'bg-vault-accent/20' : 'hover:bg-vault-border/40'
                 ].join(' ')}
                 onClick={() => openResult(r)}
                 onMouseEnter={() => setSelected(i)}
               >
+                <FileText size={13} className="text-vault-muted flex-shrink-0 mt-0.5" />
+                <div className="flex flex-col gap-0.5 min-w-0">
                 <span className="text-sm text-vault-text font-medium truncate">{r.title}</span>
                 <span
                   className="text-xs text-vault-muted truncate"
                   // snippet may contain <mark> tags from FTS5
                   dangerouslySetInnerHTML={{ __html: r.snippet || r.relativePath }}
                 />
+                </div>
               </li>
             ))}
           </ul>

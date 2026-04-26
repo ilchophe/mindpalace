@@ -1,7 +1,16 @@
-import { app, BrowserWindow, shell } from 'electron'
-import { join } from 'path'
+import { app, BrowserWindow, shell, protocol } from 'electron'
+import { join, extname } from 'path'
+import { readFileSync } from 'fs'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { autoUpdater } from 'electron-updater'
+
+// Register vault-file:// BEFORE app is ready (scheme must be declared upfront)
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: 'vault-file',
+    privileges: { bypassCSP: true, stream: true, supportFetchAPI: true, corsEnabled: true }
+  }
+])
 import { registerVaultHandlers } from './ipc/vault'
 import { registerNotesHandlers } from './ipc/notes'
 import { registerAuthHandlers } from './ipc/auth'
@@ -44,6 +53,26 @@ function createWindow(): void {
 
 app.whenReady().then(() => {
   electronApp.setAppUserModelId('com.mindpalace.app')
+
+  // Serve vault files through a safe custom scheme so the renderer can load
+  // images stored on disk without disabling webSecurity.
+  // URL format: vault-file:///absolute/path/to/file.png
+  const MIME: Record<string, string> = {
+    '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
+    '.gif': 'image/gif', '.webp': 'image/webp', '.svg': 'image/svg+xml',
+    '.bmp': 'image/bmp', '.ico': 'image/x-icon',
+  }
+  protocol.handle('vault-file', (request) => {
+    try {
+      const rawPath = request.url.slice('vault-file:///'.length)
+      const filePath = decodeURI(rawPath)
+      const data = readFileSync(filePath)
+      const mime = MIME[extname(filePath).toLowerCase()] ?? 'application/octet-stream'
+      return new Response(data, { headers: { 'Content-Type': mime } })
+    } catch {
+      return new Response('Not found', { status: 404 })
+    }
+  })
 
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)

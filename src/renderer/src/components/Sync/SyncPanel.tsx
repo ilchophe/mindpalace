@@ -1,4 +1,5 @@
 import React from 'react'
+import { RefreshCw } from 'lucide-react'
 import { useSyncStore } from '../../stores/syncStore'
 import { useVaultStore } from '../../stores/vaultStore'
 
@@ -54,11 +55,12 @@ export default function SyncPanel(): React.JSX.Element | null {
           {/* Sync button */}
           {isAuthenticated && (
             <button
-              className="btn-ghost text-xs py-1 w-full text-center"
+              className="btn-ghost text-xs py-1 w-full text-center flex items-center justify-center gap-1.5"
               onClick={syncNow}
               disabled={isSyncing}
             >
-              {isSyncing ? 'Syncing…' : '↑↓ Sync now'}
+              <RefreshCw size={11} className={isSyncing ? 'animate-spin' : ''} />
+              {isSyncing ? 'Syncing…' : 'Sync now'}
             </button>
           )}
 

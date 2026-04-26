@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react'
+import { Search } from 'lucide-react'
 import { getAllCommands, type Command } from '../../lib/commands'
 
 interface Props {
@@ -54,7 +55,7 @@ export default function CommandPalette({ onClose }: Props): React.JSX.Element {
       >
         {/* Input */}
         <div className="flex items-center gap-2 px-4 py-3 border-b border-vault-border flex-shrink-0">
-          <span className="text-vault-muted text-sm select-none">›</span>
+          <Search size={14} className="text-vault-muted flex-shrink-0" />
           <input
             ref={inputRef}
             value={query}

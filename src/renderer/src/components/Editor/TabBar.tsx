@@ -1,4 +1,5 @@
 import React from 'react'
+import { X } from 'lucide-react'
 import { useEditorStore } from '../../stores/editorStore'
 
 export default function TabBar(): React.JSX.Element {
@@ -28,13 +29,13 @@ export default function TabBar(): React.JSX.Element {
           <span className="truncate">{tab.title}</span>
           <span
             role="button"
-            className="opacity-0 group-hover:opacity-60 hover:!opacity-100 ml-auto pl-1 text-vault-muted hover:text-vault-text leading-none flex-shrink-0 transition-opacity"
+            className="opacity-0 group-hover:opacity-60 hover:!opacity-100 ml-auto pl-1 flex items-center text-vault-muted hover:text-vault-text flex-shrink-0 transition-opacity"
             onClick={(e) => {
               e.stopPropagation()
               closeTab(tab.id)
             }}
           >
-            ×
+            <X size={12} />
           </span>
         </button>
       ))}

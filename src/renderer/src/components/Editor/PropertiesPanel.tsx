@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { ChevronDown, ChevronRight, X, Plus } from 'lucide-react'
 import { useEditorStore } from '../../stores/editorStore'
 import { parseFrontmatter, stringifyFrontmatter } from '../../lib/frontmatterParser'
 
@@ -40,7 +41,7 @@ export default function PropertiesPanel(): React.JSX.Element | null {
         className="flex items-center gap-1.5 w-full px-3 py-2 text-xs text-vault-muted hover:text-vault-text transition-colors"
         onClick={() => setOpen((o) => !o)}
       >
-        <span>{open ? '▾' : '▸'}</span>
+        {open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
         <span className="font-semibold uppercase tracking-wide">Properties</span>
         {fields.length > 0 && (
           <span className="ml-auto text-vault-accent">{fields.length}</span>
@@ -71,20 +72,21 @@ export default function PropertiesPanel(): React.JSX.Element | null {
                 }}
               />
               <button
-                className="px-1 text-vault-muted hover:text-red-400 text-sm leading-none transition-colors"
+                className="p-1 text-vault-muted hover:text-red-400 transition-colors flex items-center"
                 onClick={() =>
                   applyChange(fields.filter((_, j) => j !== i) as KVPair[])
                 }
               >
-                ×
+                <X size={12} />
               </button>
             </div>
           ))}
           <button
-            className="text-xs text-vault-accent hover:opacity-80 text-left transition-opacity mt-0.5"
+            className="flex items-center gap-1 text-xs text-vault-accent hover:opacity-80 transition-opacity mt-0.5"
             onClick={() => applyChange([...fields, ['', '']])}
           >
-            + Add property
+            <Plus size={11} />
+            Add property
           </button>
         </div>
       )}

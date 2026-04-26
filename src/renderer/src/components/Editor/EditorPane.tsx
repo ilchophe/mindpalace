@@ -1,4 +1,5 @@
 import React from 'react'
+import { Pencil, Columns2, BookOpen, type LucideIcon } from 'lucide-react'
 import { useEditorStore, type ViewMode } from '../../stores/editorStore'
 import TabBar from './TabBar'
 import CodeMirrorEditor from './CodeMirrorEditor'
@@ -6,10 +7,10 @@ import MarkdownPreview from './MarkdownPreview'
 import PropertiesPanel from './PropertiesPanel'
 import BacklinksPanel from '../Search/BacklinksPanel'
 
-const VIEW_MODES: { key: ViewMode; icon: string; title: string }[] = [
-  { key: 'edit', icon: '✎', title: 'Live preview' },
-  { key: 'split', icon: '⬜⬜', title: 'Split view' },
-  { key: 'preview', icon: '👁', title: 'Reading view' }
+const VIEW_MODES: { key: ViewMode; Icon: LucideIcon; title: string }[] = [
+  { key: 'edit',    Icon: Pencil,   title: 'Live preview' },
+  { key: 'split',   Icon: Columns2, title: 'Split view' },
+  { key: 'preview', Icon: BookOpen, title: 'Reading view' }
 ]
 
 function Breadcrumb({ relativePath }: { relativePath: string }): React.JSX.Element {
@@ -51,19 +52,19 @@ export default function EditorPane(): React.JSX.Element {
 
           {/* View mode toggle */}
           <div className="flex items-center gap-0.5 flex-shrink-0">
-            {VIEW_MODES.map(({ key, icon, title }) => (
+            {VIEW_MODES.map(({ key, Icon, title }) => (
               <button
                 key={key}
                 title={title}
                 className={[
-                  'px-2 py-0.5 text-xs rounded transition-colors',
+                  'p-1.5 rounded transition-colors',
                   viewMode === key
                     ? 'bg-vault-accent/20 text-vault-accent'
                     : 'text-vault-muted hover:text-vault-text hover:bg-vault-border/40'
                 ].join(' ')}
                 onClick={() => setViewMode(key)}
               >
-                {icon}
+                <Icon size={14} />
               </button>
             ))}
           </div>
