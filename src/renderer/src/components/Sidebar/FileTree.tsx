@@ -254,6 +254,9 @@ export default function FileTree(): React.JSX.Element {
   const [search, setSearch] = useState('')
   const [creating, setCreating] = useState<'note' | 'folder' | null>(null)
   const [newName, setNewName] = useState('')
+  // createTarget: explicit parent folder for context-menu triggered create
+  // (overrides getCreateParent's selectedNote-based logic)
+  const [createTarget, setCreateTarget] = useState<string | null>(null)
   const newNameRef = useRef<HTMLInputElement>(null)
   const [emptyFolders, setEmptyFolders] = useState<string[]>([])
   const [dragOverPath, setDragOverPath] = useState<string | null>(null)
@@ -288,20 +291,22 @@ export default function FileTree(): React.JSX.Element {
   }
 
   function getCreateParent(): string {
+    if (createTarget !== null) return createTarget
     if (!selectedNote) return ''
     const parts = selectedNote.relativePath.split('/')
     return parts.length > 1 ? parts.slice(0, -1).join('/') : ''
   }
 
-  function startCreating(type: 'note' | 'folder'): void {
+  function startCreating(type: 'note' | 'folder', targetFolder?: string): void {
     setNewName('')
+    setCreateTarget(targetFolder ?? null)
     setCreating(type)
   }
 
   async function handleCreate(e: React.FormEvent): Promise<void> {
     e.preventDefault()
     const trimmed = newName.trim()
-    if (!trimmed) { setCreating(null); return }
+    if (!trimmed) { setCreating(null); setCreateTarget(null); return }
     const parent = getCreateParent()
     const relPath = parent ? `${parent}/${trimmed}` : trimmed
 
@@ -321,11 +326,13 @@ export default function FileTree(): React.JSX.Element {
       console.error('Failed to create:', err)
     }
     setCreating(null)
+    setCreateTarget(null)
     setNewName('')
   }
 
   function cancelCreate(): void {
     setCreating(null)
+    setCreateTarget(null)
     setNewName('')
   }
 
@@ -364,7 +371,8 @@ export default function FileTree(): React.JSX.Element {
 
   async function handleDelete(node: TreeNode): Promise<void> {
     const label = node.isFolder ? `folder "${node.name}" and all its contents` : `"${node.name.replace(/\.md$/, '')}"`
-    if (!window.confirm(`Delete ${label}? This cannot be undone.`)) return
+    const confirmed = await window.api.notes.confirm(`Delete ${label}?\n\nThis cannot be undone.`)
+    if (!confirmed) return
     try {
       await window.api.notes.delete(node.path)
       // Close any open tabs for deleted item
@@ -399,28 +407,12 @@ export default function FileTree(): React.JSX.Element {
     items.push({
       label: 'New note',
       icon: 'file-text',
-      onClick: async () => {
-        const name = window.prompt('Note name:', 'untitled')
-        if (!name?.trim()) return
-        const base = name.trim().endsWith('.md') ? name.trim() : `${name.trim()}.md`
-        const newPath = folderForNew ? `${folderForNew}/${base}` : base
-        await window.api.notes.write(newPath, '')
-        await loadNotes()
-        const newNote = useVaultStore.getState().notes.find((n) => n.relativePath === newPath)
-        if (newNote) { setSelectedNote(newNote); openTab(newNote) }
-      }
+      onClick: () => startCreating('note', folderForNew)
     })
     items.push({
       label: 'New folder',
       icon: 'folder-plus',
-      onClick: async () => {
-        const name = window.prompt('Folder name:', 'New folder')
-        if (!name?.trim()) return
-        const newPath = folderForNew ? `${folderForNew}/${name.trim()}` : name.trim()
-        await window.api.notes.createFolder(newPath)
-        setEmptyFolders((prev) => [...prev, newPath])
-        await loadNotes()
-      }
+      onClick: () => startCreating('folder', folderForNew)
     })
 
     items.push({ separator: true, label: '' })

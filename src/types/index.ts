@@ -260,7 +260,8 @@ export const IPC = {
     CREATE_FOLDER:     'notes:createFolder',
     GET_BACKLINKS:     'notes:getBacklinks',
     RESOLVE_WIKI_LINK: 'notes:resolveWikiLink',
-    SHOW_IN_EXPLORER:  'notes:showInExplorer'
+    SHOW_IN_EXPLORER:  'notes:showInExplorer',
+    CONFIRM:           'notes:confirm'
   },
 
   SEARCH: {

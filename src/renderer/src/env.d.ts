@@ -48,6 +48,7 @@ declare global {
         getBacklinks: (relPath: string) => Promise<string[]>
         resolveWikiLink: (link: string) => Promise<string | null>
         showInExplorer: (relPath: string) => Promise<void>
+        confirm: (message: string) => Promise<boolean>
       }
       auth: {
         getStatus: () => Promise<AuthStatus>

@@ -1,4 +1,4 @@
-import { ipcMain, shell } from 'electron'
+import { ipcMain, shell, dialog } from 'electron'
 import { readdirSync, statSync, readFileSync, writeFileSync, renameSync, rmSync, mkdirSync } from 'fs'
 import { join, relative, extname, dirname } from 'path'
 import { IPC } from '../../types'
@@ -123,6 +123,18 @@ export function registerNotesHandlers(): void {
     const vaultPath = requireVaultPath()
     const abs = join(vaultPath, relPath)
     shell.showItemInFolder(abs)
+  })
+
+  // Native confirmation dialog (window.confirm is blocked in Electron)
+  ipcMain.handle(IPC.NOTES.CONFIRM, (_e, message: string) => {
+    const result = dialog.showMessageBoxSync({
+      type: 'warning',
+      buttons: ['Cancel', 'Delete'],
+      defaultId: 0,
+      cancelId: 0,
+      message,
+    })
+    return result === 1  // true = user chose "Delete"
   })
 
   ipcMain.handle(IPC.NOTES.CREATE_FOLDER, (_e, relPath: string) => {

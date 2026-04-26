@@ -51,7 +51,8 @@ const api = {
     createFolder: (relPath: string) => ipcRenderer.invoke(IPC.NOTES.CREATE_FOLDER, relPath),
     getBacklinks: (relPath: string) => ipcRenderer.invoke(IPC.NOTES.GET_BACKLINKS, relPath),
     resolveWikiLink: (link: string) => ipcRenderer.invoke(IPC.NOTES.RESOLVE_WIKI_LINK, link),
-    showInExplorer: (relPath: string) => ipcRenderer.invoke(IPC.NOTES.SHOW_IN_EXPLORER, relPath)
+    showInExplorer: (relPath: string) => ipcRenderer.invoke(IPC.NOTES.SHOW_IN_EXPLORER, relPath),
+    confirm: (message: string) => ipcRenderer.invoke(IPC.NOTES.CONFIRM, message)
   },
 
   auth: {
