@@ -10,6 +10,7 @@ interface VaultStore {
 
   // File tree
   notes: NoteMetadata[]
+  assets: string[]          // relative paths of non-md vault files (images, PDFs…)
   selectedNote: NoteMetadata | null
 
   // UI
@@ -23,6 +24,7 @@ interface VaultStore {
   closeManager: () => void
   setSelectedNote: (note: NoteMetadata | null) => void
   loadNotes: () => Promise<void>
+  loadAssets: () => Promise<void>
   pinVault: (id: string, pinned: boolean) => Promise<void>
   updateLabels: (id: string, labels: string[]) => Promise<void>
   deleteVault: (id: string, confirmation: string, deleteRemote: boolean) => Promise<string | null>
@@ -35,6 +37,7 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
   activeVault: null,
   activeConfig: null,
   notes: [],
+  assets: [],
   selectedNote: null,
   isManagerOpen: false,
   isLoading: false,
@@ -57,8 +60,9 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
         window.api.vault.list(),
         window.api.vault.getActive()
       ])
-      set({ activeConfig: config, activeVault, vaults, notes: [], selectedNote: null })
+      set({ activeConfig: config, activeVault, vaults, notes: [], assets: [], selectedNote: null })
       await get().loadNotes()
+      await get().loadAssets()
     } finally {
       set({ isLoading: false })
     }
@@ -74,6 +78,7 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
       ])
       set({ activeConfig: config, activeVault, vaults, isManagerOpen: false })
       await get().loadNotes()
+      await get().loadAssets()
     } finally {
       set({ isLoading: false })
     }
@@ -96,6 +101,11 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
   loadNotes: async () => {
     const notes = await window.api.notes.list()
     set({ notes })
+  },
+
+  loadAssets: async () => {
+    const assets = await window.api.notes.listAssets()
+    set({ assets })
   },
 
   setSelectedNote: (note) => set({ selectedNote: note }),

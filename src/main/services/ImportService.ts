@@ -28,11 +28,20 @@ class ImportService {
       errors: []
     }
 
-    // 2. Copy images (preserving subfolder structure under source root)
+    // 2. Build a map of image basename → vault-relative-path (before copying).
+    //    Obsidian's ![[img.png]] is resolved by global filename search, so we
+    //    replicate that: first match wins when basenames collide.
+    const imageMap = new Map<string, string>()
+    for (const imgAbs of imgFiles) {
+      const rel = relative(sourcePath, imgAbs).replace(/\\/g, '/')
+      const base = basename(imgAbs)
+      if (!imageMap.has(base)) imageMap.set(base, rel)
+    }
+
+    // 3. Copy images (preserving subfolder structure under source root)
     onProgress({ phase: 'copying', total, done, currentFile: '' })
     for (const imgAbs of imgFiles) {
       try {
-        // Guard against very large files
         const size = statSync(imgAbs).size
         if (size > MAX_FILE_SIZE) {
           result.errors.push(`skip (>50 MB): ${imgAbs}`)
@@ -50,18 +59,19 @@ class ImportService {
       onProgress({ phase: 'copying', total, done: ++done, currentFile: basename(imgAbs) })
     }
 
-    // 3. Copy + rewrite .md files
+    // 4. Copy + rewrite .md files
     onProgress({ phase: 'rewriting', total, done, currentFile: '' })
     for (const mdAbs of mdFiles) {
       try {
-        const rel = relative(sourcePath, mdAbs)
+        const rel = relative(sourcePath, mdAbs).replace(/\\/g, '/')
         const dest = join(vaultPath, rel)
         mkdirSync(dirname(dest), { recursive: true })
         const content = readFileSync(mdAbs, 'utf8')
         const { content: rewritten, count } = this.rewriteObsidianEmbeds(
           content,
           rel,
-          imageSubfolder
+          imageSubfolder,
+          imageMap
         )
         result.referencesRewritten += count
         writeFileSync(dest, rewritten, 'utf8')
@@ -80,7 +90,7 @@ class ImportService {
   private walkDir(dir: string): string[] {
     const results: string[] = []
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
-      if (entry.name.startsWith('.')) continue // skip .obsidian, .git, .DS_Store etc.
+      if (entry.name.startsWith('.')) continue
       const full = join(dir, entry.name)
       if (entry.isDirectory()) {
         results.push(...this.walkDir(full))
@@ -92,42 +102,73 @@ class ImportService {
   }
 
   /**
-   * Rewrite Obsidian wiki-link image embeds to standard Markdown img tags.
+   * Compute a path from noteRelPath's directory to imgVaultRelPath.
    *
-   * ![[image.png]]        → ![](images/image.png)   (imageSubfolder prepended)
-   * ![[sub/image.png]]    → ![](sub/image.png)       (path preserved)
-   * [[Note Title]]        → unchanged                (wiki-link to another note)
-   * ![](image.png)        → ![](images/image.png)    (bare ref, no dir component)
-   * ![](images/img.png)   → unchanged                (already correct)
-   * ![](https://...)      → unchanged                (external URL)
+   * Examples:
+   *   note "notes/arch.md", img "images/photo.png"  → "../images/photo.png"
+   *   note "arch.md",        img "images/photo.png"  → "images/photo.png"
+   *   note "a/b/note.md",   img "photo.png"          → "../../photo.png"
+   */
+  private relativeToNote(noteRelPath: string, imgVaultRelPath: string): string {
+    const noteDepth = noteRelPath.split('/').length - 1 // number of directory segments
+    const prefix = '../'.repeat(noteDepth)
+    return prefix + imgVaultRelPath
+  }
+
+  /**
+   * Rewrite Obsidian wiki-link image embeds to standard Markdown img tags.
+   * Uses imageMap (basename → vault-relative-path) to resolve Obsidian's global
+   * filename search behaviour, then computes the correct relative path from the
+   * note's location.
    */
   rewriteObsidianEmbeds(
     content: string,
-    _noteRelPath: string,
-    imageSubfolder: string
+    noteRelPath: string,
+    imageSubfolder: string,
+    imageMap?: Map<string, string>
   ): { content: string; count: number } {
     let count = 0
 
-    // Pass 1: ![[...]] wiki-link embeds
+    // Pass 1: ![[...]] Obsidian wiki-link embeds
     const pass1 = content.replace(/!\[\[([^\]]+)\]\]/g, (_match, target: string) => {
       const trimmed = target.trim()
       const ext = extname(trimmed).toLowerCase()
       if (!IMAGE_EXTS.has(ext)) return _match // wiki-link to another note — leave alone
-      // If the source already has a path separator, trust it
-      const imgPath = trimmed.includes('/') ? trimmed : `${imageSubfolder}/${trimmed}`
+
+      let vaultRelPath: string
+      if (!trimmed.includes('/') && imageMap?.has(trimmed)) {
+        // Use the actual vault-relative path from the scan map
+        vaultRelPath = imageMap.get(trimmed)!
+      } else if (trimmed.includes('/')) {
+        // Already has a path — treat as vault-relative
+        vaultRelPath = trimmed
+      } else {
+        // Fallback: assume imageSubfolder
+        vaultRelPath = `${imageSubfolder}/${trimmed}`
+      }
+
       count++
-      return `![](${imgPath})`
+      return `![](${this.relativeToNote(noteRelPath, vaultRelPath)})`
     })
 
-    // Pass 2: bare ![](img.png) references without a directory component
+    // Pass 2: bare ![](img.png) references without any directory component
+    // (Obsidian sometimes writes these when attachments are at vault root)
     const pass2 = pass1.replace(
       /!\[([^\]]*)\]\(([^)]+)\)/g,
       (_match, alt: string, src: string) => {
         if (src.startsWith('http') || src.startsWith('/') || src.includes('/')) return _match
         const ext = extname(src).toLowerCase()
         if (!IMAGE_EXTS.has(ext)) return _match
+
+        let vaultRelPath: string
+        if (imageMap?.has(src)) {
+          vaultRelPath = imageMap.get(src)!
+        } else {
+          vaultRelPath = `${imageSubfolder}/${src}`
+        }
+
         count++
-        return `![${alt}](${imageSubfolder}/${src})`
+        return `![${alt}](${this.relativeToNote(noteRelPath, vaultRelPath)})`
       }
     )
 

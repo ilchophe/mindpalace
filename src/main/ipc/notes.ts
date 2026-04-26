@@ -24,6 +24,30 @@ function titleFromPath(relPath: string): string {
   return relPath.split(/[\\/]/).pop()?.replace(/\.md$/, '') ?? relPath
 }
 
+const ASSET_EXTS = new Set([
+  '.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.bmp',
+  '.pdf', '.zip', '.csv', '.xlsx', '.docx', '.mp4', '.mp3'
+])
+
+/** Walk a directory recursively and collect non-md asset file paths. */
+function walkAssets(dir: string, vaultPath: string): string[] {
+  const results: string[] = []
+  let names: string[]
+  try { names = readdirSync(dir) } catch { return results }
+  for (const name of names) {
+    if (name.startsWith('.')) continue
+    const abs = join(dir, name)
+    let st
+    try { st = statSync(abs) } catch { continue }
+    if (st.isDirectory()) {
+      results.push(...walkAssets(abs, vaultPath))
+    } else if (st.isFile() && ASSET_EXTS.has(extname(name).toLowerCase())) {
+      results.push(relative(vaultPath, abs).replace(/\\/g, '/'))
+    }
+  }
+  return results
+}
+
 /** Walk a directory recursively and collect .md file metadata from filesystem. */
 function walkMdFiles(dir: string, vaultPath: string): NoteMetadata[] {
   const results: NoteMetadata[] = []
@@ -66,6 +90,11 @@ export function registerNotesHandlers(): void {
     const vaultPath = requireVaultPath()
     if (indexService.enabled) return indexService.listAll()
     return walkMdFiles(vaultPath, vaultPath)
+  })
+
+  ipcMain.handle(IPC.NOTES.LIST_ASSETS, () => {
+    const vaultPath = requireVaultPath()
+    return walkAssets(vaultPath, vaultPath)
   })
 
   ipcMain.handle(IPC.NOTES.READ, (_e, relPath: string) => {

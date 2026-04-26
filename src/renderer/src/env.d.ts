@@ -53,6 +53,7 @@ declare global {
         resolveWikiLink: (link: string) => Promise<string | null>
         showInExplorer: (relPath: string) => Promise<void>
         confirm: (message: string) => Promise<boolean>
+        listAssets: () => Promise<string[]>
       }
       auth: {
         getStatus: () => Promise<AuthStatus>

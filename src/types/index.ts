@@ -283,7 +283,8 @@ export const IPC = {
     GET_BACKLINKS:     'notes:getBacklinks',
     RESOLVE_WIKI_LINK: 'notes:resolveWikiLink',
     SHOW_IN_EXPLORER:  'notes:showInExplorer',
-    CONFIRM:           'notes:confirm'
+    CONFIRM:           'notes:confirm',
+    LIST_ASSETS:       'notes:listAssets'
   },
 
   SEARCH: {

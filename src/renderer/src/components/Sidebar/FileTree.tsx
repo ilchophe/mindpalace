@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { FilePlus, FolderPlus, ChevronRight, FileText, Folder } from 'lucide-react'
+import { FilePlus, FolderPlus, ChevronRight, FileText, Folder, Image, File } from 'lucide-react'
 import type { NoteMetadata } from '@shared'
 import { useVaultStore } from '../../stores/vaultStore'
 import { useEditorStore } from '../../stores/editorStore'
@@ -11,9 +11,12 @@ interface TreeNode {
   isFolder: boolean
   children: TreeNode[]
   note?: NoteMetadata
+  assetExt?: string   // set for non-md asset files (images, PDFs…)
 }
 
-function buildTree(notes: NoteMetadata[], emptyFolders: string[]): TreeNode[] {
+const IMAGE_EXTS_SET = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.bmp'])
+
+function buildTree(notes: NoteMetadata[], emptyFolders: string[], assets: string[]): TreeNode[] {
   const root: TreeNode = { name: '', path: '', isFolder: true, children: [] }
 
   function ensurePath(parts: string[]): TreeNode {
@@ -41,6 +44,17 @@ function buildTree(notes: NoteMetadata[], emptyFolders: string[]): TreeNode[] {
     }
   }
 
+  for (const assetPath of assets) {
+    const parts = assetPath.split('/')
+    const parentParts = parts.slice(0, -1)
+    const parentNode = parentParts.length ? ensurePath(parentParts) : root
+    const name = parts[parts.length - 1]
+    const ext = name.includes('.') ? name.slice(name.lastIndexOf('.')).toLowerCase() : ''
+    if (!parentNode.children.find((c) => c.name === name)) {
+      parentNode.children.push({ name, path: assetPath, isFolder: false, children: [], assetExt: ext })
+    }
+  }
+
   for (const folderPath of emptyFolders) {
     const parts = folderPath.split('/').filter(Boolean)
     if (parts.length) ensurePath(parts)
@@ -50,6 +64,12 @@ function buildTree(notes: NoteMetadata[], emptyFolders: string[]): TreeNode[] {
     return nodes
       .sort((a, b) => {
         if (a.isFolder !== b.isFolder) return a.isFolder ? -1 : 1
+        // Within same type: notes before assets, then alphabetical
+        if (!a.isFolder && !b.isFolder) {
+          const aIsAsset = !!a.assetExt
+          const bIsAsset = !!b.assetExt
+          if (aIsAsset !== bIsAsset) return aIsAsset ? 1 : -1
+        }
         return a.name.localeCompare(b.name)
       })
       .map((n) => ({ ...n, children: sortNodes(n.children) }))
@@ -222,7 +242,11 @@ function TreeItem({
       onDragLeave={drag.onDragLeave}
       onDrop={(e) => drag.onDrop(e, node)}
       onContextMenu={(e) => onContextMenu(e, node)}
-      onClick={() => !isRenaming && node.note && onSelect(node.note)}
+      onClick={() => {
+        if (isRenaming) return
+        if (node.note) onSelect(node.note)
+        else if (node.assetExt) window.api.notes.showInExplorer(node.path)
+      }}
     >
       <IndentGuides depth={depth} />
       {isRenaming ? (
@@ -238,6 +262,17 @@ function TreeItem({
           className="flex-1 rounded border border-vault-accent bg-vault-bg px-1.5 py-0 text-xs text-vault-text outline-none min-w-0"
           onClick={(e) => e.stopPropagation()}
         />
+      ) : node.assetExt ? (
+        <>
+          {IMAGE_EXTS_SET.has(node.assetExt)
+            ? <Image size={13} className="flex-shrink-0 text-vault-muted/40" />
+            : <File size={13} className="flex-shrink-0 text-vault-muted/40" />
+          }
+          <span className="truncate text-vault-muted/80">{node.name}</span>
+          <span className="ml-auto flex-shrink-0 text-[9px] font-medium uppercase text-vault-muted/50 tracking-wider">
+            {node.assetExt.slice(1)}
+          </span>
+        </>
       ) : (
         <>
           <FileText size={13} className="flex-shrink-0 text-vault-muted/60" />
@@ -249,7 +284,7 @@ function TreeItem({
 }
 
 export default function FileTree(): React.JSX.Element {
-  const { notes, selectedNote, setSelectedNote, loadNotes, activeConfig } = useVaultStore()
+  const { notes, assets, selectedNote, setSelectedNote, loadNotes, loadAssets, activeConfig } = useVaultStore()
   const { openTab, renameItemPath, closeTab, tabs } = useEditorStore()
   const [search, setSearch] = useState('')
   const [creating, setCreating] = useState<'note' | 'folder' | null>(null)
@@ -269,14 +304,16 @@ export default function FileTree(): React.JSX.Element {
   }, [creating])
 
   useEffect(() => {
-    if (activeConfig) loadNotes()
+    if (activeConfig) { loadNotes(); loadAssets() }
   }, [activeConfig]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    const off1 = window.api.vault.onFileCreated(() => loadNotes())
-    const off2 = window.api.vault.onFileDeleted(() => loadNotes())
-    const off3 = window.api.vault.onFileChanged(() => loadNotes())
-    return () => { off1(); off2(); off3() }
+    const reload = (): void => { loadNotes(); loadAssets() }
+    const off1 = window.api.vault.onFileCreated(reload)
+    const off2 = window.api.vault.onFileDeleted(reload)
+    const off3 = window.api.vault.onFileChanged(reload)
+    const off4 = window.api.vault.onRegistryChanged(reload) // picks up post-import reindex
+    return () => { off1(); off2(); off3(); off4() }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -511,7 +548,7 @@ export default function FileTree(): React.JSX.Element {
     return notes.filter((n) => n.title.toLowerCase().includes(q) || n.relativePath.toLowerCase().includes(q))
   }, [notes, search])
 
-  const tree = useMemo(() => buildTree(filtered, emptyFolders), [filtered, emptyFolders])
+  const tree = useMemo(() => buildTree(filtered, emptyFolders, assets), [filtered, emptyFolders, assets])
 
   const createParent = getCreateParent()
 

@@ -59,7 +59,8 @@ const api = {
     getBacklinks: (relPath: string) => ipcRenderer.invoke(IPC.NOTES.GET_BACKLINKS, relPath),
     resolveWikiLink: (link: string) => ipcRenderer.invoke(IPC.NOTES.RESOLVE_WIKI_LINK, link),
     showInExplorer: (relPath: string) => ipcRenderer.invoke(IPC.NOTES.SHOW_IN_EXPLORER, relPath),
-    confirm: (message: string) => ipcRenderer.invoke(IPC.NOTES.CONFIRM, message)
+    confirm: (message: string) => ipcRenderer.invoke(IPC.NOTES.CONFIRM, message),
+    listAssets: () => ipcRenderer.invoke(IPC.NOTES.LIST_ASSETS)
   },
 
   auth: {
