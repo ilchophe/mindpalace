@@ -115,11 +115,11 @@ export default function MonacoEditor(): React.JSX.Element | null {
         fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",
         fontLigatures: true,
         bracketPairColorization: { enabled: false },
-        lineNumbers: 'on',
+        lineNumbers: 'off',
         glyphMargin: false,
         folding: false,
         lineDecorationsWidth: 0,
-        lineNumbersMinChars: 3,
+        lineNumbersMinChars: 0,
         automaticLayout: true,
       }}
     />

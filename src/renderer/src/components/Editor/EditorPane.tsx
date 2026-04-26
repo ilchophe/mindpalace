@@ -1,15 +1,15 @@
 import React from 'react'
 import { useEditorStore, type ViewMode } from '../../stores/editorStore'
 import TabBar from './TabBar'
-import MonacoEditor from './MonacoEditor'
+import CodeMirrorEditor from './CodeMirrorEditor'
 import MarkdownPreview from './MarkdownPreview'
 import PropertiesPanel from './PropertiesPanel'
 import BacklinksPanel from '../Search/BacklinksPanel'
 
 const VIEW_MODES: { key: ViewMode; icon: string; title: string }[] = [
-  { key: 'edit',    icon: '✎',  title: 'Edit mode'     },
-  { key: 'split',   icon: '⬜⬜', title: 'Split view'    },
-  { key: 'preview', icon: '👁',  title: 'Reading view'  },
+  { key: 'edit', icon: '✎', title: 'Live preview' },
+  { key: 'split', icon: '⬜⬜', title: 'Split view' },
+  { key: 'preview', icon: '👁', title: 'Reading view' }
 ]
 
 function Breadcrumb({ relativePath }: { relativePath: string }): React.JSX.Element {
@@ -22,9 +22,7 @@ function Breadcrumb({ relativePath }: { relativePath: string }): React.JSX.Eleme
           <span
             className={[
               'truncate',
-              i === parts.length - 1
-                ? 'text-vault-text font-medium'
-                : 'text-vault-muted',
+              i === parts.length - 1 ? 'text-vault-text font-medium' : 'text-vault-muted'
             ].join(' ')}
           >
             {part}
@@ -37,7 +35,7 @@ function Breadcrumb({ relativePath }: { relativePath: string }): React.JSX.Eleme
 
 export default function EditorPane(): React.JSX.Element {
   const { tabs, activeTabId, viewMode, setViewMode } = useEditorStore()
-  const activeTab = tabs.find((t) => t.id === activeTabId) ?? null
+  const activeTab = tabs.find(t => t.id === activeTabId) ?? null
   const hasActiveTab = activeTab !== null
 
   return (
@@ -61,7 +59,7 @@ export default function EditorPane(): React.JSX.Element {
                   'px-2 py-0.5 text-xs rounded transition-colors',
                   viewMode === key
                     ? 'bg-vault-accent/20 text-vault-accent'
-                    : 'text-vault-muted hover:text-vault-text hover:bg-vault-border/40',
+                    : 'text-vault-muted hover:text-vault-text hover:bg-vault-border/40'
                 ].join(' ')}
                 onClick={() => setViewMode(key)}
               >
@@ -79,19 +77,21 @@ export default function EditorPane(): React.JSX.Element {
               <div
                 className={[
                   'flex flex-col overflow-hidden',
-                  viewMode === 'split' ? 'w-1/2 border-r border-vault-border' : 'w-full',
+                  viewMode === 'split' ? 'w-1/2 border-r border-vault-border' : 'w-full'
                 ].join(' ')}
               >
                 <div className="relative flex-1 overflow-hidden">
                   <div className="absolute inset-0">
-                    <MonacoEditor />
+                    <CodeMirrorEditor />
                   </div>
                 </div>
               </div>
             )}
             {(viewMode === 'preview' || viewMode === 'split') && (
               <div
-                className={viewMode === 'split' ? 'w-1/2 overflow-hidden' : 'w-full overflow-hidden'}
+                className={
+                  viewMode === 'split' ? 'w-1/2 overflow-hidden' : 'w-full overflow-hidden'
+                }
               >
                 <MarkdownPreview />
               </div>

@@ -72,13 +72,57 @@ interface TreeItemProps {
   drag: DragHandlers
 }
 
+// Indent step in pixels — must match the values used in paddingLeft below
+const INDENT_PX = 20
+
+function IndentGuides({ depth }: { depth: number }): React.JSX.Element | null {
+  if (depth === 0) return null
+  return (
+    <>
+      {Array.from({ length: depth }, (_, i) => (
+        <span
+          key={i}
+          className="absolute inset-y-0 pointer-events-none"
+          style={{
+            left: `${i * INDENT_PX + 10}px`,
+            width: '1px',
+            background: 'var(--vault-border)',
+            opacity: 0.6,
+          }}
+        />
+      ))}
+    </>
+  )
+}
+
+function ChevronIcon({ open }: { open: boolean }): React.JSX.Element {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="flex-shrink-0 transition-transform duration-150 text-vault-muted/70"
+      style={{ transform: open ? 'rotate(90deg)' : 'rotate(0deg)' }}
+    >
+      <polyline points="9 18 15 12 9 6" />
+    </svg>
+  )
+}
+
 function TreeItem({ node, depth, selectedPath, onSelect, drag }: TreeItemProps): React.JSX.Element {
   const [open, setOpen] = useState(true)
   const isSelected = !node.isFolder && selectedPath === node.path
   const isDragOver = drag.dragOverPath === node.path
-  const indent = depth * 16
+  const indent = depth * INDENT_PX
 
-  const baseClass = 'flex items-center gap-1 w-full py-[3px] pr-2 text-left text-sm rounded transition-colors cursor-grab'
+  const baseClass =
+    'relative flex items-center gap-1.5 w-full py-[3px] pr-2 text-left text-sm rounded transition-colors cursor-grab'
   const dragOverClass = isDragOver ? 'bg-vault-accent/20 ring-1 ring-vault-accent/50' : ''
 
   if (node.isFolder) {
@@ -90,29 +134,26 @@ function TreeItem({ node, depth, selectedPath, onSelect, drag }: TreeItemProps):
       >
         <button
           draggable
-          style={{ paddingLeft: `${indent + 6}px` }}
+          style={{ paddingLeft: `${indent + 4}px` }}
           className={[baseClass, dragOverClass, 'text-vault-muted hover:text-vault-text hover:bg-vault-border/30'].join(' ')}
           onDragStart={(e) => drag.onDragStart(e, node.path)}
           onClick={() => setOpen((o) => !o)}
         >
-          <span
-            className="text-[10px] text-vault-muted/70 transition-transform duration-100 inline-block flex-shrink-0"
-            style={{ transform: open ? 'rotate(90deg)' : 'rotate(0deg)' }}
-          >
-            ›
-          </span>
+          <IndentGuides depth={depth} />
+          <ChevronIcon open={open} />
           <span className="truncate">{node.name}</span>
         </button>
-        {open && node.children.map((child) => (
-          <TreeItem
-            key={child.path}
-            node={child}
-            depth={depth + 1}
-            selectedPath={selectedPath}
-            onSelect={onSelect}
-            drag={drag}
-          />
-        ))}
+        {open &&
+          node.children.map((child) => (
+            <TreeItem
+              key={child.path}
+              node={child}
+              depth={depth + 1}
+              selectedPath={selectedPath}
+              onSelect={onSelect}
+              drag={drag}
+            />
+          ))}
       </div>
     )
   }
@@ -120,13 +161,11 @@ function TreeItem({ node, depth, selectedPath, onSelect, drag }: TreeItemProps):
   return (
     <button
       draggable
-      style={{ paddingLeft: `${indent + 18}px` }}
+      style={{ paddingLeft: `${indent + 22}px` }}
       className={[
         baseClass,
         dragOverClass,
-        isSelected
-          ? 'bg-vault-accent/20 text-vault-accent'
-          : 'text-vault-text hover:bg-vault-border/30',
+        isSelected ? 'bg-vault-accent/20 text-vault-accent' : 'text-vault-text hover:bg-vault-border/30',
       ].join(' ')}
       onDragStart={(e) => drag.onDragStart(e, node.path)}
       onDragOver={(e) => drag.onDragOver(e, node.path)}
@@ -134,6 +173,7 @@ function TreeItem({ node, depth, selectedPath, onSelect, drag }: TreeItemProps):
       onDrop={(e) => drag.onDrop(e, node)}
       onClick={() => node.note && onSelect(node.note)}
     >
+      <IndentGuides depth={depth} />
       <span className="truncate">{node.name.replace(/\.md$/, '')}</span>
     </button>
   )
