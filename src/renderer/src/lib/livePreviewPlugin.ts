@@ -1,28 +1,17 @@
 /**
  * CodeMirror 6 live-preview plugin for MindPalace.
  *
- * When the cursor is OUTSIDE a markdown construct the raw syntax markers are
- * hidden and a styled representation is shown in their place — mirroring
- * Obsidian's "Live Preview" mode.  When the cursor moves inside the node the
- * raw markdown is revealed so the user can edit it.
+ * Uses a single StateField so both block (FencedCode, HorizontalRule) and
+ * inline (headings, bold, italic, inline code, links) decorations come from
+ * the same source.  ViewPlugin cannot provide block:true decorations; a
+ * StateField has no such restriction.
  *
- * CM6 rule: block decorations (block:true) MUST come from a StateField, not a
- * ViewPlugin.  Inline decorations (Decoration.mark / non-block replace) are
- * fine in a ViewPlugin.
- *
- * Handled constructs:
- *   ATX headings (H1–H6) · fenced code blocks · inline code
- *   bold (StrongEmphasis) · italic (Emphasis) · links · horizontal rules
+ * The field rebuilds whenever the transaction changes the document or the
+ * selection, so moving the cursor in/out of a construct immediately toggles
+ * between preview and raw-edit appearance.
  */
 
-import {
-  Decoration,
-  type DecorationSet,
-  EditorView,
-  ViewPlugin,
-  type ViewUpdate,
-  WidgetType,
-} from '@codemirror/view'
+import { Decoration, type DecorationSet, EditorView, WidgetType } from '@codemirror/view'
 import { syntaxHighlighting, HighlightStyle } from '@codemirror/language'
 import { syntaxTree } from '@codemirror/language'
 import { StateField, type Extension } from '@codemirror/state'
@@ -34,7 +23,7 @@ import { tags } from '@lezer/highlight'
 
 function cursorOverlaps(state: EditorState, from: number, to: number): boolean {
   for (const sel of state.selection.ranges) {
-    if (sel.from < to && sel.to > from) return true
+    if (sel.from <= to && sel.to >= from) return true
   }
   return false
 }
@@ -89,189 +78,159 @@ class HrWidget extends WidgetType {
   }
 }
 
-// ── Block decorations (StateField) ───────────────────────────────────────────
-// CM6 requires block:true decorations to come from a StateField, not a plugin.
+// ── Decoration builder ───────────────────────────────────────────────────────
 
-function buildBlockDecorations(state: EditorState): DecorationSet {
+function buildDecorations(state: EditorState): DecorationSet {
   const deco: Range<Decoration>[] = []
 
-  syntaxTree(state).iterate({
-    enter(node): false | void {
-      const { from, to, name } = node
+  try {
+    syntaxTree(state).iterate({
+      enter(node): false | void {
+        const { from, to, name } = node
 
-      // ── Fenced code blocks ───────────────────────────────────────────────
-      if (name === 'FencedCode') {
-        if (cursorOverlaps(state, from, to)) return false
+        // ── ATX Headings (H1–H6) ────────────────────────────────────────────
+        if (/^ATXHeading[1-6]$/.test(name)) {
+          // Use the heading's own line end (not node.to which includes \n)
+          // so cursor on the *next* line does not keep this heading in raw mode
+          const lineEnd = state.doc.lineAt(from).to
+          if (cursorOverlaps(state, from, lineEnd)) return false
 
-        const text = state.sliceDoc(from, to)
-        const lines = text.split('\n')
-        const lang = lines[0].replace(/^[`~]+/, '').trim()
-        const code = lines
-          .slice(1, lines[lines.length - 1].match(/^[`~]{3}/) ? -1 : undefined)
-          .join('\n')
+          const level = parseInt(name.slice(-1), 10)
+          const markerLen = level + 1 // e.g. "## " = 2 + 1 space
+          const markerEnd = from + markerLen
 
-        const startLine = state.doc.lineAt(from)
-        const endLine = state.doc.lineAt(Math.max(from, to - 1))
+          if (markerEnd < to) {
+            deco.push(Decoration.replace({}).range(from, markerEnd))
+            deco.push(
+              Decoration.mark({ class: `cm-live-h cm-live-h${level}` }).range(markerEnd, lineEnd),
+            )
+          }
+          return false
+        }
 
-        deco.push(
-          Decoration.replace({
-            widget: new CodeBlockWidget(lang, code),
-            block: true,
-          }).range(startLine.from, endLine.to),
-        )
-        return false
-      }
+        // ── Fenced code blocks ───────────────────────────────────────────────
+        if (name === 'FencedCode') {
+          if (cursorOverlaps(state, from, to)) return false
 
-      // ── Horizontal rule ──────────────────────────────────────────────────
-      if (name === 'HorizontalRule') {
-        if (cursorOverlaps(state, from, to)) return false
+          const text = state.sliceDoc(from, to)
+          const lines = text.split('\n')
+          const lang = lines[0].replace(/^[`~]+/, '').trim()
+          const code = lines
+            .slice(1, lines[lines.length - 1].match(/^[`~]{3}/) ? -1 : undefined)
+            .join('\n')
 
-        const startLine = state.doc.lineAt(from)
-        const endLine = state.doc.lineAt(Math.max(from, to - 1))
+          const startLine = state.doc.lineAt(from)
+          const endLine = state.doc.lineAt(Math.max(from, to - 1))
 
-        deco.push(
-          Decoration.replace({
-            widget: new HrWidget(),
-            block: true,
-          }).range(startLine.from, endLine.to),
-        )
-        return false
-      }
-      return
-    },
-  })
+          deco.push(
+            Decoration.replace({
+              widget: new CodeBlockWidget(lang, code),
+              block: true,
+            }).range(startLine.from, endLine.to),
+          )
+          return false
+        }
+
+        // ── Inline code ──────────────────────────────────────────────────────
+        if (name === 'InlineCode') {
+          if (cursorOverlaps(state, from, to)) return false
+
+          const text = state.sliceDoc(from, to)
+          const fenceMatch = text.match(/^(`+)/)
+          const fLen = fenceMatch ? fenceMatch[1].length : 1
+
+          if (from + fLen < to - fLen) {
+            deco.push(Decoration.replace({}).range(from, from + fLen))
+            deco.push(Decoration.mark({ class: 'cm-live-code' }).range(from + fLen, to - fLen))
+            deco.push(Decoration.replace({}).range(to - fLen, to))
+          }
+          return false
+        }
+
+        // ── Strong emphasis (**bold** / __bold__) ────────────────────────────
+        if (name === 'StrongEmphasis') {
+          if (cursorOverlaps(state, from, to)) return false
+
+          const mLen = 2
+          if (from + mLen < to - mLen) {
+            deco.push(Decoration.replace({}).range(from, from + mLen))
+            deco.push(Decoration.mark({ class: 'cm-live-strong' }).range(from + mLen, to - mLen))
+            deco.push(Decoration.replace({}).range(to - mLen, to))
+          }
+          return false
+        }
+
+        // ── Emphasis (*italic* / _italic_) ───────────────────────────────────
+        if (name === 'Emphasis') {
+          if (cursorOverlaps(state, from, to)) return false
+
+          if (from + 1 < to - 1) {
+            deco.push(Decoration.replace({}).range(from, from + 1))
+            deco.push(Decoration.mark({ class: 'cm-live-em' }).range(from + 1, to - 1))
+            deco.push(Decoration.replace({}).range(to - 1, to))
+          }
+          return false
+        }
+
+        // ── Links [text](url) ────────────────────────────────────────────────
+        if (name === 'Link') {
+          if (cursorOverlaps(state, from, to)) return false
+
+          const text = state.sliceDoc(from, to)
+          const match = text.match(/^\[([^\]]*)\]\(([^)]*)\)$/)
+          if (match) {
+            const linkTextStart = from + 1
+            const linkTextEnd = from + 1 + match[1].length
+            deco.push(Decoration.replace({}).range(from, linkTextStart))
+            deco.push(
+              Decoration.mark({ class: 'cm-live-link' }).range(linkTextStart, linkTextEnd),
+            )
+            deco.push(Decoration.replace({}).range(linkTextEnd, to))
+          }
+          return false
+        }
+
+        // ── Horizontal rule ──────────────────────────────────────────────────
+        if (name === 'HorizontalRule') {
+          if (cursorOverlaps(state, from, to)) return false
+
+          const startLine = state.doc.lineAt(from)
+          const endLine = state.doc.lineAt(Math.max(from, to - 1))
+
+          deco.push(
+            Decoration.replace({
+              widget: new HrWidget(),
+              block: true,
+            }).range(startLine.from, endLine.to),
+          )
+          return false
+        }
+        return
+      },
+    })
+  } catch (err) {
+    console.error('[livePreview] decoration build error:', err)
+    return Decoration.none
+  }
 
   return Decoration.set(deco.sort((a, b) => a.from - b.from))
 }
 
-const blockDecorationField = StateField.define<DecorationSet>({
-  create(state) {
-    return buildBlockDecorations(state)
+// ── Unified StateField ────────────────────────────────────────────────────────
+// StateField (unlike ViewPlugin) may provide block:true decorations.
+
+const livePreviewField = StateField.define<DecorationSet>({
+  create: buildDecorations,
+  update(deco, tr) {
+    if (tr.docChanged || tr.selection) return buildDecorations(tr.state)
+    return deco
   },
-  update(decorations, tr) {
-    if (tr.docChanged || tr.selection) {
-      return buildBlockDecorations(tr.state)
-    }
-    return decorations
-  },
-  provide(field) {
-    return EditorView.decorations.from(field)
-  },
+  provide: (f) => EditorView.decorations.from(f),
 })
 
-// ── Inline decorations (ViewPlugin) ─────────────────────────────────────────
-// Inline Decoration.replace and Decoration.mark are allowed in ViewPlugins.
+export const livePreviewPlugin: Extension = livePreviewField
 
-function buildInlineDecorations(view: EditorView): DecorationSet {
-  const { state } = view
-  const deco: Range<Decoration>[] = []
-
-  syntaxTree(state).iterate({
-    enter(node): false | void {
-      const { from, to, name } = node
-
-      // ── ATX Headings (H1–H6) ────────────────────────────────────────────
-      if (/^ATXHeading[1-6]$/.test(name)) {
-        if (cursorOverlaps(state, from, to)) return false
-
-        const level = parseInt(name.slice(-1), 10)
-        const markerLen = level + 1 // "## " = 2 hashes + 1 space
-        const markerEnd = from + markerLen
-
-        if (markerEnd <= to) {
-          deco.push(Decoration.replace({}).range(from, markerEnd))
-          deco.push(
-            Decoration.mark({ class: `cm-live-h cm-live-h${level}` }).range(markerEnd, to),
-          )
-        }
-        return false
-      }
-
-      // ── Inline code ──────────────────────────────────────────────────────
-      if (name === 'InlineCode') {
-        if (cursorOverlaps(state, from, to)) return false
-
-        const text = state.sliceDoc(from, to)
-        const fenceMatch = text.match(/^(`+)/)
-        const fLen = fenceMatch ? fenceMatch[1].length : 1
-
-        if (from + fLen < to - fLen) {
-          deco.push(Decoration.replace({}).range(from, from + fLen))
-          deco.push(Decoration.mark({ class: 'cm-live-code' }).range(from + fLen, to - fLen))
-          deco.push(Decoration.replace({}).range(to - fLen, to))
-        }
-        return false
-      }
-
-      // ── Strong emphasis (**bold** / __bold__) ────────────────────────────
-      if (name === 'StrongEmphasis') {
-        if (cursorOverlaps(state, from, to)) return false
-
-        const mLen = 2
-        if (from + mLen < to - mLen) {
-          deco.push(Decoration.replace({}).range(from, from + mLen))
-          deco.push(Decoration.mark({ class: 'cm-live-strong' }).range(from + mLen, to - mLen))
-          deco.push(Decoration.replace({}).range(to - mLen, to))
-        }
-        return false
-      }
-
-      // ── Emphasis (*italic* / _italic_) ───────────────────────────────────
-      if (name === 'Emphasis') {
-        if (cursorOverlaps(state, from, to)) return false
-
-        if (from + 1 < to - 1) {
-          deco.push(Decoration.replace({}).range(from, from + 1))
-          deco.push(Decoration.mark({ class: 'cm-live-em' }).range(from + 1, to - 1))
-          deco.push(Decoration.replace({}).range(to - 1, to))
-        }
-        return false
-      }
-
-      // ── Links [text](url) ────────────────────────────────────────────────
-      if (name === 'Link') {
-        if (cursorOverlaps(state, from, to)) return false
-
-        const text = state.sliceDoc(from, to)
-        const match = text.match(/^\[([^\]]*)\]\(([^)]*)\)$/)
-        if (match) {
-          const linkTextStart = from + 1
-          const linkTextEnd = from + 1 + match[1].length
-          deco.push(Decoration.replace({}).range(from, linkTextStart))
-          deco.push(
-            Decoration.mark({ class: 'cm-live-link' }).range(linkTextStart, linkTextEnd),
-          )
-          deco.push(Decoration.replace({}).range(linkTextEnd, to))
-        }
-        return false
-      }
-      return
-    },
-  })
-
-  return Decoration.set(
-    deco.sort((a, b) => a.from - b.from || a.value.startSide - b.value.startSide),
-  )
-}
-
-const inlineDecorationPlugin = ViewPlugin.fromClass(
-  class {
-    decorations: DecorationSet
-
-    constructor(view: EditorView) {
-      this.decorations = buildInlineDecorations(view)
-    }
-
-    update(update: ViewUpdate): void {
-      if (update.docChanged || update.selectionSet || update.viewportChanged) {
-        this.decorations = buildInlineDecorations(update.view)
-      }
-    }
-  },
-  { decorations: (v) => v.decorations },
-)
-
-// ── Syntax highlight style (raw text shown when cursor is nearby) ─────────────
+// ── Syntax highlight style (raw text when cursor is inside a construct) ───────
 
 export const markdownHighlightStyle = syntaxHighlighting(
   HighlightStyle.define([
@@ -284,11 +243,6 @@ export const markdownHighlightStyle = syntaxHighlighting(
     { tag: tags.punctuation, color: 'var(--vault-muted)' },
   ]),
 )
-
-// ── Combined export ───────────────────────────────────────────────────────────
-// CM6 flattens nested extension arrays, so this is valid as a single Extension.
-
-export const livePreviewPlugin: Extension = [blockDecorationField, inlineDecorationPlugin]
 
 // ── Theme ─────────────────────────────────────────────────────────────────────
 
