@@ -247,18 +247,21 @@ export const markdownHighlightStyle = syntaxHighlighting(
 // ── Theme ─────────────────────────────────────────────────────────────────────
 
 export const mindpalaceTheme = EditorView.theme({
-  '&': { fontSize: '15px', background: 'transparent', height: '100%' },
+  '&': { fontSize: '16px', background: 'transparent', height: '100%' },
   '.cm-scroller': {
-    fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, sans-serif',
-    lineHeight: '1.75',
+    fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    lineHeight: '1.8',
     color: 'var(--vault-text)',
     overflowY: 'auto',
+    overflowX: 'hidden',
   },
   '.cm-content': {
-    padding: '24px 32px 64px',
+    padding: '48px 24px 100px',
     caretColor: 'var(--vault-accent)',
     color: 'var(--vault-text)',
-    maxWidth: '860px',
+    maxWidth: '720px',
+    margin: '0 auto',
+    boxSizing: 'border-box',
   },
   '.cm-line': { padding: '0', color: 'var(--vault-text)' },
   '.cm-gutters': { display: 'none' },

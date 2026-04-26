@@ -86,8 +86,8 @@ function IndentGuides({ depth }: { depth: number }): React.JSX.Element | null {
           style={{
             left: `${i * INDENT_PX + 10}px`,
             width: '1px',
-            background: 'var(--vault-border)',
-            opacity: 0.6,
+            background: '#555555',
+            opacity: 1,
           }}
         />
       ))}
@@ -128,7 +128,6 @@ function TreeItem({ node, depth, selectedPath, onSelect, drag }: TreeItemProps):
   if (node.isFolder) {
     return (
       <div
-        onDragOver={(e) => drag.onDragOver(e, node.path)}
         onDragLeave={drag.onDragLeave}
         onDrop={(e) => drag.onDrop(e, node)}
       >
@@ -137,6 +136,8 @@ function TreeItem({ node, depth, selectedPath, onSelect, drag }: TreeItemProps):
           style={{ paddingLeft: `${indent + 4}px` }}
           className={[baseClass, dragOverClass, 'text-vault-muted hover:text-vault-text hover:bg-vault-border/30'].join(' ')}
           onDragStart={(e) => drag.onDragStart(e, node.path)}
+          onDragOver={(e) => drag.onDragOver(e, node.path)}
+          onDrop={(e) => drag.onDrop(e, node)}
           onClick={() => setOpen((o) => !o)}
         >
           <IndentGuides depth={depth} />
@@ -263,8 +264,6 @@ export default function FileTree(): React.JSX.Element {
   function handleDragStart(e: React.DragEvent, path: string): void {
     dragSrcRef.current = path
     e.dataTransfer.effectAllowed = 'move'
-    // Prevent the click-triggered folder toggle on drag start
-    e.stopPropagation()
   }
 
   function handleDragOver(e: React.DragEvent, path: string): void {

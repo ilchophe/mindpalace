@@ -2,22 +2,26 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Import Inter — same typeface Obsidian ships */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
 :root {
-  --vault-bg: #1e1e2e;
-  --vault-surface: #2a2a3c;
-  --vault-border: #383851;
-  --vault-text: #cdd6f4;
-  --vault-muted: #6c7086;
-  --vault-accent: #cba6f7;
+  /* Obsidian-matched neutral dark palette */
+  --vault-bg: #1a1a1a;
+  --vault-surface: #222222;
+  --vault-border: #333333;
+  --vault-text: #dcddde;
+  --vault-muted: #888888;
+  --vault-accent: #7c6af7;
 }
 
 .light {
-  --vault-bg: #eff1f5;
-  --vault-surface: #e6e9ef;
-  --vault-border: #ccd0da;
-  --vault-text: #4c4f69;
-  --vault-muted: #9ca0b0;
-  --vault-accent: #8839ef;
+  --vault-bg: #fafafa;
+  --vault-surface: #f0f0f0;
+  --vault-border: #d4d4d4;
+  --vault-text: #1a1a1a;
+  --vault-muted: #6b6b6b;
+  --vault-accent: #7c3aed;
 }
 
 * {
@@ -35,7 +39,7 @@ body,
 }
 
 body {
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   background: var(--vault-bg);
   color: var(--vault-text);
 }
@@ -82,8 +86,12 @@ body {
 
 .markdown-preview {
   color: var(--vault-text);
-  font-size: 0.9375rem;
-  line-height: 1.75;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 1rem;
+  line-height: 1.8;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 48px 24px 100px;
 }
 
 .markdown-preview h1,

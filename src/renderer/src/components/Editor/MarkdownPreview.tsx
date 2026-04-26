@@ -25,7 +25,7 @@ export default function MarkdownPreview(): React.JSX.Element | null {
 
   return (
     <div
-      className="markdown-preview h-full overflow-y-auto px-8 py-6"
+      className="markdown-preview h-full overflow-y-auto"
       dangerouslySetInnerHTML={{ __html: html }}
     />
   )
