@@ -115,3 +115,24 @@ const api = {
 }
 
 contextBridge.exposeInMainWorld('api', api)
+
+contextBridge.exposeInMainWorld('platform', process.platform)
+
+const windowApi = {
+  minimize: () => ipcRenderer.invoke(IPC.WINDOW.MINIMIZE),
+  maximize: () => ipcRenderer.invoke(IPC.WINDOW.MAXIMIZE),
+  close:    () => ipcRenderer.invoke(IPC.WINDOW.CLOSE),
+  isMaximized: () => ipcRenderer.invoke(IPC.WINDOW.IS_MAXIMIZED) as Promise<boolean>,
+  onMaximizeChange: (cb: (maximized: boolean) => void) => {
+    const onMax   = (): void => cb(true)
+    const onUnmax = (): void => cb(false)
+    ipcRenderer.on(IPC.WINDOW.MAXIMIZED,   onMax)
+    ipcRenderer.on(IPC.WINDOW.UNMAXIMIZED, onUnmax)
+    return () => {
+      ipcRenderer.off(IPC.WINDOW.MAXIMIZED,   onMax)
+      ipcRenderer.off(IPC.WINDOW.UNMAXIMIZED, onUnmax)
+    }
+  }
+}
+
+contextBridge.exposeInMainWorld('windowApi', windowApi)

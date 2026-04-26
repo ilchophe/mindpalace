@@ -1,6 +1,44 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { X, ChevronDown, FileText } from 'lucide-react'
+import { X, ChevronDown, FileText, Minus, Square, Copy } from 'lucide-react'
 import { useEditorStore } from '../../stores/editorStore'
+
+const isMac = window.platform === 'darwin'
+
+function WindowControls(): React.JSX.Element {
+  const [maximized, setMaximized] = useState(false)
+
+  useEffect(() => {
+    window.windowApi.isMaximized().then(setMaximized)
+    const unsub = window.windowApi.onMaximizeChange(setMaximized)
+    return unsub
+  }, [])
+
+  return (
+    <div className="flex items-stretch flex-shrink-0 app-no-drag">
+      <button
+        title="Minimize"
+        className="h-full px-3.5 text-vault-muted hover:text-vault-text hover:bg-vault-surface/70 transition-colors flex items-center"
+        onClick={() => window.windowApi.minimize()}
+      >
+        <Minus size={13} />
+      </button>
+      <button
+        title={maximized ? 'Restore' : 'Maximize'}
+        className="h-full px-3.5 text-vault-muted hover:text-vault-text hover:bg-vault-surface/70 transition-colors flex items-center"
+        onClick={() => window.windowApi.maximize()}
+      >
+        {maximized ? <Copy size={12} className="rotate-0" /> : <Square size={12} />}
+      </button>
+      <button
+        title="Close"
+        className="h-full px-3.5 text-vault-muted hover:text-white hover:bg-red-600 transition-colors flex items-center"
+        onClick={() => window.windowApi.close()}
+      >
+        <X size={13} />
+      </button>
+    </div>
+  )
+}
 
 export default function TabBar(): React.JSX.Element {
   const { tabs, activeTabId, setActiveTab, closeTab } = useEditorStore()
@@ -26,14 +64,11 @@ export default function TabBar(): React.JSX.Element {
     active?.scrollIntoView({ inline: 'nearest', block: 'nearest' })
   }, [activeTabId])
 
-  if (tabs.length === 0) {
-    return <div className="h-9 border-b border-vault-border bg-vault-bg flex-shrink-0" />
-  }
-
+  // The outer container is the drag region — interactive children opt out
   return (
-    <div className="relative flex items-stretch h-9 border-b border-vault-border bg-vault-bg flex-shrink-0">
+    <div className="app-drag relative flex items-stretch h-9 border-b border-vault-border bg-vault-bg flex-shrink-0">
       {/* Tab strip — overflow hidden so tabs never wrap or scroll */}
-      <div ref={stripRef} className="flex items-stretch overflow-hidden flex-1">
+      <div ref={stripRef} className="flex items-stretch overflow-hidden flex-1 app-no-drag">
         {tabs.map((tab) => (
           <button
             key={tab.id}
@@ -65,22 +100,23 @@ export default function TabBar(): React.JSX.Element {
         ))}
       </div>
 
-      {/* Overflow button — only shown when tabs don't all fit */}
+      {/* Overflow dropdown — only shown when tabs overflow */}
       {hasOverflow && (
-        <div className="relative flex-shrink-0">
+        <div className="relative flex-shrink-0 app-no-drag">
           <button
             title="All open tabs"
             className="h-full px-2 border-l border-vault-border text-vault-muted hover:text-vault-text hover:bg-vault-surface/50 flex items-center transition-colors"
             onClick={() => setShowDropdown((d) => !d)}
           >
-            <ChevronDown size={14} className={showDropdown ? 'rotate-180 transition-transform' : 'transition-transform'} />
+            <ChevronDown
+              size={14}
+              className={showDropdown ? 'rotate-180 transition-transform' : 'transition-transform'}
+            />
           </button>
 
           {showDropdown && (
             <>
-              {/* Backdrop */}
               <div className="fixed inset-0 z-40" onClick={() => setShowDropdown(false)} />
-              {/* Dropdown list */}
               <div className="absolute right-0 top-full z-50 w-64 bg-vault-surface border border-vault-border rounded-lg shadow-xl overflow-hidden">
                 <div className="px-3 py-1.5 border-b border-vault-border">
                   <span className="text-[10px] font-semibold text-vault-muted uppercase tracking-wider">
@@ -109,7 +145,7 @@ export default function TabBar(): React.JSX.Element {
                       <span className="truncate flex-1">{tab.title}</span>
                       <span
                         role="button"
-                        className="opacity-0 group-hover:opacity-60 hover:!opacity-100 flex-shrink-0 text-vault-muted hover:text-red-400 transition-opacity"
+                        className="opacity-60 hover:!opacity-100 flex-shrink-0 text-vault-muted hover:text-red-400 transition-opacity"
                         onClick={(e) => {
                           e.stopPropagation()
                           closeTab(tab.id)
@@ -126,6 +162,12 @@ export default function TabBar(): React.JSX.Element {
           )}
         </div>
       )}
+
+      {/* Spacer that acts as drag region when no tabs fill the bar */}
+      <div className="flex-1 min-w-[1rem]" />
+
+      {/* Window controls — right side, only on Windows / Linux */}
+      {!isMac && <WindowControls />}
     </div>
   )
 }

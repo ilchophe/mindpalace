@@ -20,6 +20,14 @@ import type {
 
 declare global {
   interface Window {
+    platform: string
+    windowApi: {
+      minimize: () => Promise<void>
+      maximize: () => Promise<void>
+      close: () => Promise<void>
+      isMaximized: () => Promise<boolean>
+      onMaximizeChange: (cb: (maximized: boolean) => void) => () => void
+    }
     api: {
       vault: {
         list: () => Promise<VaultSummary[]>

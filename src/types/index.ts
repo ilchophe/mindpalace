@@ -319,5 +319,15 @@ export const IPC = {
     IMPORT_FILE:   'images:importFile',
     REWRITE_PATHS: 'images:rewritePaths',
     GET_MODE:      'images:getMode'
+  },
+
+  WINDOW: {
+    MINIMIZE:      'window:minimize',
+    MAXIMIZE:      'window:maximize',
+    CLOSE:         'window:close',
+    IS_MAXIMIZED:  'window:isMaximized',
+    // Push events main → renderer
+    MAXIMIZED:     'window:maximized',
+    UNMAXIMIZED:   'window:unmaximized',
   }
 } as const

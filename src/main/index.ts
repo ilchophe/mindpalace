@@ -17,6 +17,8 @@ import { registerAuthHandlers } from './ipc/auth'
 import { registerGitHandlers } from './ipc/git'
 import { registerSearchHandlers } from './ipc/search'
 import { registerImageHandlers } from './ipc/images'
+import { registerWindowHandlers } from './ipc/window'
+import { IPC } from '../types'
 
 function createWindow(): void {
   const mainWindow = new BrowserWindow({
@@ -26,7 +28,7 @@ function createWindow(): void {
     minHeight: 600,
     show: false,
     autoHideMenuBar: true,
-    titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
+    titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'hidden',
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false,
@@ -37,6 +39,14 @@ function createWindow(): void {
 
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()
+  })
+
+  mainWindow.on('maximize', () => {
+    mainWindow.webContents.send(IPC.WINDOW.MAXIMIZED)
+  })
+
+  mainWindow.on('unmaximize', () => {
+    mainWindow.webContents.send(IPC.WINDOW.UNMAXIMIZED)
   })
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
@@ -84,6 +94,7 @@ app.whenReady().then(() => {
   registerGitHandlers()
   registerSearchHandlers()
   registerImageHandlers()
+  registerWindowHandlers()
 
   createWindow()
 
