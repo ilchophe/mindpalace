@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import type { NoteMetadata } from '@shared'
 import { useVaultStore } from '../../stores/vaultStore'
 import { useEditorStore } from '../../stores/editorStore'
+import ContextMenu, { type ContextMenuItem } from './ContextMenu'
 
 interface TreeNode {
   name: string
@@ -70,9 +71,12 @@ interface TreeItemProps {
   selectedPath: string | null
   onSelect: (note: NoteMetadata) => void
   drag: DragHandlers
+  renamingPath: string | null
+  onRenameSubmit: (oldPath: string, newName: string) => void
+  onRenameCancel: () => void
+  onContextMenu: (e: React.MouseEvent, node: TreeNode) => void
 }
 
-// Indent step in pixels — must match the values used in paddingLeft below
 const INDENT_PX = 20
 
 function IndentGuides({ depth }: { depth: number }): React.JSX.Element | null {
@@ -115,15 +119,55 @@ function ChevronIcon({ open }: { open: boolean }): React.JSX.Element {
   )
 }
 
-function TreeItem({ node, depth, selectedPath, onSelect, drag }: TreeItemProps): React.JSX.Element {
+function TreeItem({
+  node,
+  depth,
+  selectedPath,
+  onSelect,
+  drag,
+  renamingPath,
+  onRenameSubmit,
+  onRenameCancel,
+  onContextMenu,
+}: TreeItemProps): React.JSX.Element {
   const [open, setOpen] = useState(true)
+  const [renameValue, setRenameValue] = useState('')
+  const renameInputRef = useRef<HTMLInputElement>(null)
   const isSelected = !node.isFolder && selectedPath === node.path
   const isDragOver = drag.dragOverPath === node.path
   const indent = depth * INDENT_PX
+  const isRenaming = renamingPath === node.path
+
+  useEffect(() => {
+    if (isRenaming) {
+      setRenameValue(node.name.replace(/\.md$/, ''))
+      setTimeout(() => renameInputRef.current?.select(), 0)
+    }
+  }, [isRenaming, node.name])
 
   const baseClass =
     'relative flex items-center gap-1.5 w-full py-[3px] pr-2 text-left text-sm rounded transition-colors cursor-grab'
   const dragOverClass = isDragOver ? 'bg-vault-accent/20 ring-1 ring-vault-accent/50' : ''
+
+  const nameDisplay = (
+    <>
+      <IndentGuides depth={depth} />
+      {isRenaming ? (
+        <input
+          ref={renameInputRef}
+          value={renameValue}
+          onChange={(e) => setRenameValue(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') { e.preventDefault(); onRenameSubmit(node.path, renameValue) }
+            if (e.key === 'Escape') onRenameCancel()
+          }}
+          onBlur={() => onRenameCancel()}
+          className="flex-1 rounded border border-vault-accent bg-vault-bg px-1.5 py-0 text-xs text-vault-text outline-none min-w-0"
+          onClick={(e) => e.stopPropagation()}
+        />
+      ) : null}
+    </>
+  )
 
   if (node.isFolder) {
     return (
@@ -132,17 +176,22 @@ function TreeItem({ node, depth, selectedPath, onSelect, drag }: TreeItemProps):
         onDrop={(e) => drag.onDrop(e, node)}
       >
         <button
-          draggable
+          draggable={!isRenaming}
           style={{ paddingLeft: `${indent + 4}px` }}
           className={[baseClass, dragOverClass, 'text-vault-muted hover:text-vault-text hover:bg-vault-border/30'].join(' ')}
           onDragStart={(e) => drag.onDragStart(e, node.path)}
           onDragOver={(e) => drag.onDragOver(e, node.path)}
           onDrop={(e) => drag.onDrop(e, node)}
-          onClick={() => setOpen((o) => !o)}
+          onContextMenu={(e) => onContextMenu(e, node)}
+          onClick={() => !isRenaming && setOpen((o) => !o)}
         >
-          <IndentGuides depth={depth} />
-          <ChevronIcon open={open} />
-          <span className="truncate">{node.name}</span>
+          {nameDisplay}
+          {!isRenaming && (
+            <>
+              <ChevronIcon open={open} />
+              <span className="truncate">{node.name}</span>
+            </>
+          )}
         </button>
         {open &&
           node.children.map((child) => (
@@ -153,6 +202,10 @@ function TreeItem({ node, depth, selectedPath, onSelect, drag }: TreeItemProps):
               selectedPath={selectedPath}
               onSelect={onSelect}
               drag={drag}
+              renamingPath={renamingPath}
+              onRenameSubmit={onRenameSubmit}
+              onRenameCancel={onRenameCancel}
+              onContextMenu={onContextMenu}
             />
           ))}
       </div>
@@ -161,7 +214,7 @@ function TreeItem({ node, depth, selectedPath, onSelect, drag }: TreeItemProps):
 
   return (
     <button
-      draggable
+      draggable={!isRenaming}
       style={{ paddingLeft: `${indent + 22}px` }}
       className={[
         baseClass,
@@ -172,17 +225,33 @@ function TreeItem({ node, depth, selectedPath, onSelect, drag }: TreeItemProps):
       onDragOver={(e) => drag.onDragOver(e, node.path)}
       onDragLeave={drag.onDragLeave}
       onDrop={(e) => drag.onDrop(e, node)}
-      onClick={() => node.note && onSelect(node.note)}
+      onContextMenu={(e) => onContextMenu(e, node)}
+      onClick={() => !isRenaming && node.note && onSelect(node.note)}
     >
       <IndentGuides depth={depth} />
-      <span className="truncate">{node.name.replace(/\.md$/, '')}</span>
+      {isRenaming ? (
+        <input
+          ref={renameInputRef}
+          value={renameValue}
+          onChange={(e) => setRenameValue(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') { e.preventDefault(); onRenameSubmit(node.path, renameValue) }
+            if (e.key === 'Escape') onRenameCancel()
+          }}
+          onBlur={() => onRenameCancel()}
+          className="flex-1 rounded border border-vault-accent bg-vault-bg px-1.5 py-0 text-xs text-vault-text outline-none min-w-0"
+          onClick={(e) => e.stopPropagation()}
+        />
+      ) : (
+        <span className="truncate">{node.name.replace(/\.md$/, '')}</span>
+      )}
     </button>
   )
 }
 
 export default function FileTree(): React.JSX.Element {
   const { notes, selectedNote, setSelectedNote, loadNotes, activeConfig } = useVaultStore()
-  const { openTab, renameItemPath } = useEditorStore()
+  const { openTab, renameItemPath, closeTab, tabs } = useEditorStore()
   const [search, setSearch] = useState('')
   const [creating, setCreating] = useState<'note' | 'folder' | null>(null)
   const [newName, setNewName] = useState('')
@@ -190,6 +259,8 @@ export default function FileTree(): React.JSX.Element {
   const [emptyFolders, setEmptyFolders] = useState<string[]>([])
   const [dragOverPath, setDragOverPath] = useState<string | null>(null)
   const dragSrcRef = useRef<string | null>(null)
+  const [renamingPath, setRenamingPath] = useState<string | null>(null)
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; node: TreeNode } | null>(null)
 
   useEffect(() => {
     if (creating) newNameRef.current?.focus()
@@ -259,6 +330,134 @@ export default function FileTree(): React.JSX.Element {
     setNewName('')
   }
 
+  // ── Inline rename ────────────────────────────────────────────────────────
+
+  function startRename(path: string): void {
+    setRenamingPath(path)
+  }
+
+  async function handleRenameSubmit(oldPath: string, newName: string): Promise<void> {
+    setRenamingPath(null)
+    const trimmed = newName.trim()
+    if (!trimmed) return
+    const parts = oldPath.split('/')
+    const isFile = oldPath.endsWith('.md')
+    const newBaseName = isFile
+      ? (trimmed.endsWith('.md') ? trimmed : `${trimmed}.md`)
+      : trimmed
+    parts[parts.length - 1] = newBaseName
+    const newPath = parts.join('/')
+    if (newPath === oldPath) return
+    try {
+      await window.api.notes.rename(oldPath, newPath)
+      renameItemPath(oldPath, newPath)
+      await loadNotes()
+    } catch (err) {
+      console.error('Rename failed:', err)
+    }
+  }
+
+  function handleRenameCancel(): void {
+    setRenamingPath(null)
+  }
+
+  // ── Delete ───────────────────────────────────────────────────────────────
+
+  async function handleDelete(node: TreeNode): Promise<void> {
+    const label = node.isFolder ? `folder "${node.name}" and all its contents` : `"${node.name.replace(/\.md$/, '')}"`
+    if (!window.confirm(`Delete ${label}? This cannot be undone.`)) return
+    try {
+      await window.api.notes.delete(node.path)
+      // Close any open tabs for deleted item
+      if (!node.isFolder) {
+        const tab = tabs.find((t) => t.relativePath === node.path)
+        if (tab) closeTab(tab.id)
+      } else {
+        tabs.filter((t) => t.relativePath.startsWith(node.path + '/')).forEach((t) => closeTab(t.id))
+      }
+      await loadNotes()
+    } catch (err) {
+      console.error('Delete failed:', err)
+    }
+  }
+
+  // ── Context menu ─────────────────────────────────────────────────────────
+
+  function openContextMenu(e: React.MouseEvent, node: TreeNode): void {
+    e.preventDefault()
+    e.stopPropagation()
+    setContextMenu({ x: e.clientX, y: e.clientY, node })
+  }
+
+  function buildContextItems(node: TreeNode): ContextMenuItem[] {
+    const folderForNew = node.isFolder
+      ? node.path
+      : node.path.split('/').slice(0, -1).join('/')
+
+    const items: ContextMenuItem[] = []
+
+    // Create in same folder
+    items.push({
+      label: 'New note',
+      icon: '📄',
+      onClick: async () => {
+        const name = window.prompt('Note name:', 'untitled')
+        if (!name?.trim()) return
+        const base = name.trim().endsWith('.md') ? name.trim() : `${name.trim()}.md`
+        const newPath = folderForNew ? `${folderForNew}/${base}` : base
+        await window.api.notes.write(newPath, '')
+        await loadNotes()
+        const newNote = useVaultStore.getState().notes.find((n) => n.relativePath === newPath)
+        if (newNote) { setSelectedNote(newNote); openTab(newNote) }
+      }
+    })
+    items.push({
+      label: 'New folder',
+      icon: '📁',
+      onClick: async () => {
+        const name = window.prompt('Folder name:', 'New folder')
+        if (!name?.trim()) return
+        const newPath = folderForNew ? `${folderForNew}/${name.trim()}` : name.trim()
+        await window.api.notes.createFolder(newPath)
+        setEmptyFolders((prev) => [...prev, newPath])
+        await loadNotes()
+      }
+    })
+
+    items.push({ separator: true, label: '' })
+
+    items.push({
+      label: 'Rename…',
+      icon: '✏️',
+      onClick: () => startRename(node.path)
+    })
+
+    items.push({ separator: true, label: '' })
+
+    items.push({
+      label: 'Copy path',
+      icon: '📋',
+      onClick: () => navigator.clipboard.writeText(node.path)
+    })
+
+    items.push({
+      label: 'Show in Explorer',
+      icon: '📂',
+      onClick: () => window.api.notes.showInExplorer(node.path)
+    })
+
+    items.push({ separator: true, label: '' })
+
+    items.push({
+      label: 'Delete',
+      icon: '🗑️',
+      danger: true,
+      onClick: () => handleDelete(node)
+    })
+
+    return items
+  }
+
   // ── Drag & drop ──────────────────────────────────────────────────────────
 
   function handleDragStart(e: React.DragEvent, path: string): void {
@@ -274,7 +473,6 @@ export default function FileTree(): React.JSX.Element {
   }
 
   function handleDragLeave(e: React.DragEvent): void {
-    // Only clear if leaving to outside the tree entirely
     if (!e.currentTarget.contains(e.relatedTarget as Node)) {
       setDragOverPath(null)
     }
@@ -289,7 +487,6 @@ export default function FileTree(): React.JSX.Element {
     dragSrcRef.current = null
     if (!src) return
 
-    // Destination folder: drop onto folder → inside it; drop onto file → sibling
     const destFolder = targetNode.isFolder
       ? targetNode.path
       : targetNode.path.split('/').slice(0, -1).join('/')
@@ -298,7 +495,6 @@ export default function FileTree(): React.JSX.Element {
     const newPath = destFolder ? `${destFolder}/${srcName}` : srcName
 
     if (src === newPath) return
-    // Prevent dropping a folder into itself or a descendant
     if (newPath.startsWith(src + '/')) return
 
     try {
@@ -396,7 +592,6 @@ export default function FileTree(): React.JSX.Element {
         className="flex-1 overflow-y-auto py-1"
         onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move' }}
         onDrop={async (e) => {
-          // Drop onto the empty space below the tree = move to vault root
           e.preventDefault()
           const src = dragSrcRef.current
           dragSrcRef.current = null
@@ -424,10 +619,24 @@ export default function FileTree(): React.JSX.Element {
               selectedPath={selectedNote?.relativePath ?? null}
               onSelect={handleNoteSelect}
               drag={dragHandlers}
+              renamingPath={renamingPath}
+              onRenameSubmit={handleRenameSubmit}
+              onRenameCancel={handleRenameCancel}
+              onContextMenu={openContextMenu}
             />
           ))
         )}
       </div>
+
+      {/* Context menu portal */}
+      {contextMenu && (
+        <ContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          items={buildContextItems(contextMenu.node)}
+          onClose={() => setContextMenu(null)}
+        />
+      )}
     </div>
   )
 }

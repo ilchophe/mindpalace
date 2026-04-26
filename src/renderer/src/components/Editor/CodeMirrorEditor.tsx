@@ -6,15 +6,18 @@ import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
 import {
   livePreviewPlugin,
   markdownHighlightStyle,
-  mindpalaceTheme
+  mindpalaceTheme,
+  noteContextFacet
 } from '../../lib/livePreviewPlugin'
 import { useEditorStore } from '../../stores/editorStore'
+import { useVaultStore } from '../../stores/vaultStore'
 
 const SAVE_DELAY_MS = 1000
 
 export default function CodeMirrorEditor(): React.JSX.Element | null {
   const { tabs, activeTabId, setContent, saveTab } = useEditorStore()
   const tab = tabs.find(t => t.id === activeTabId)
+  const activeVault = useVaultStore(s => s.activeVault)
 
   const containerRef = useRef<HTMLDivElement>(null)
   const viewRef = useRef<EditorView | null>(null)
@@ -56,6 +59,10 @@ export default function CodeMirrorEditor(): React.JSX.Element | null {
           markdownHighlightStyle,
           livePreviewPlugin,
           mindpalaceTheme,
+          noteContextFacet.of({
+            vaultPath: activeVault?.localPath ?? '',
+            noteRelPath: tab.relativePath
+          }),
           EditorView.lineWrapping,
           EditorView.domEventHandlers({
             paste(event, pasteView) {

@@ -14,10 +14,39 @@
 import { Decoration, type DecorationSet, EditorView, WidgetType } from '@codemirror/view'
 import { syntaxHighlighting, HighlightStyle } from '@codemirror/language'
 import { syntaxTree } from '@codemirror/language'
-import { StateField, type Extension } from '@codemirror/state'
+import { StateField, Facet, type Extension } from '@codemirror/state'
 import type { EditorState } from '@codemirror/state'
 import type { Range } from '@codemirror/state'
 import { tags } from '@lezer/highlight'
+
+// ── Note context facet ────────────────────────────────────────────────────────
+// Injected by CodeMirrorEditor so the Image widget can resolve vault-relative paths.
+
+export interface NoteContext { vaultPath: string; noteRelPath: string }
+
+export const noteContextFacet = Facet.define<NoteContext, NoteContext>({
+  combine: (vals) => vals[vals.length - 1] ?? { vaultPath: '', noteRelPath: '' }
+})
+
+/** Resolve an image src (relative to the note) to a vault-file:// URL. */
+function toVaultFileUrl(ctx: NoteContext, imgSrc: string): string {
+  if (!ctx.vaultPath || imgSrc.startsWith('http://') || imgSrc.startsWith('https://')) {
+    return imgSrc
+  }
+  // Build absolute path: vaultPath/noteDirSegments/imgSrcSegments, then normalise ..
+  const noteDirParts = ctx.noteRelPath.split('/').slice(0, -1)
+  const rawParts = [
+    ...ctx.vaultPath.replace(/\\/g, '/').split('/'),
+    ...noteDirParts,
+    ...imgSrc.split('/')
+  ]
+  const resolved: string[] = []
+  for (const seg of rawParts) {
+    if (seg === '..') resolved.pop()
+    else if (seg && seg !== '.') resolved.push(seg)
+  }
+  return `vault-file:///${encodeURI(resolved.join('/'))}`
+}
 
 // ── Cursor overlap check ─────────────────────────────────────────────────────
 
@@ -78,10 +107,45 @@ class HrWidget extends WidgetType {
   }
 }
 
+class ImageWidget extends WidgetType {
+  constructor(
+    readonly src: string,
+    readonly alt: string,
+    readonly resolvedUrl: string,
+  ) {
+    super()
+  }
+
+  eq(other: ImageWidget): boolean {
+    return other.resolvedUrl === this.resolvedUrl && other.alt === this.alt
+  }
+
+  toDOM(): HTMLElement {
+    const wrap = document.createElement('span')
+    wrap.className = 'cm-rendered-image'
+    const img = document.createElement('img')
+    img.src = this.resolvedUrl
+    img.alt = this.alt
+    img.className = 'cm-rendered-img'
+    // Fall back to raw text if image can't load
+    img.onerror = () => {
+      wrap.textContent = `![${this.alt}](${this.src})`
+      wrap.className = 'cm-rendered-image-error'
+    }
+    wrap.appendChild(img)
+    return wrap
+  }
+
+  ignoreEvent(): boolean {
+    return false
+  }
+}
+
 // ── Decoration builder ───────────────────────────────────────────────────────
 
 function buildDecorations(state: EditorState): DecorationSet {
   const deco: Range<Decoration>[] = []
+  const noteCtx = state.facet(noteContextFacet)
 
   try {
     syntaxTree(state).iterate({
@@ -186,6 +250,25 @@ function buildDecorations(state: EditorState): DecorationSet {
               Decoration.mark({ class: 'cm-live-link' }).range(linkTextStart, linkTextEnd),
             )
             deco.push(Decoration.replace({}).range(linkTextEnd, to))
+          }
+          return false
+        }
+
+        // ── Images ![alt](src) ───────────────────────────────────────────────
+        if (name === 'Image') {
+          if (cursorOverlaps(state, from, to)) return false
+
+          const text = state.sliceDoc(from, to)
+          const match = text.match(/^!\[([^\]]*)\]\(([^)]*)\)$/)
+          if (match) {
+            const alt = match[1]
+            const src = match[2]
+            const resolvedUrl = toVaultFileUrl(noteCtx, src)
+            deco.push(
+              Decoration.replace({
+                widget: new ImageWidget(src, alt, resolvedUrl),
+              }).range(from, to),
+            )
           }
           return false
         }
@@ -323,6 +406,21 @@ export const mindpalaceTheme = EditorView.theme({
     textTransform: 'lowercase',
     letterSpacing: '0.03em',
     userSelect: 'none',
+  },
+
+  // Inline image widget
+  '.cm-rendered-image': { display: 'inline-block', lineHeight: '0', verticalAlign: 'middle' },
+  '.cm-rendered-img': {
+    maxWidth: '100%',
+    maxHeight: '480px',
+    borderRadius: '4px',
+    display: 'block',
+    margin: '4px 0',
+  },
+  '.cm-rendered-image-error': {
+    fontFamily: "'JetBrains Mono','Fira Code',monospace",
+    fontSize: '0.8em',
+    color: 'var(--vault-muted)',
   },
 
   // Horizontal rule widget

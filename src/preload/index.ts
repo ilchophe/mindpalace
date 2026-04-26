@@ -50,7 +50,8 @@ const api = {
     delete: (relPath: string) => ipcRenderer.invoke(IPC.NOTES.DELETE, relPath),
     createFolder: (relPath: string) => ipcRenderer.invoke(IPC.NOTES.CREATE_FOLDER, relPath),
     getBacklinks: (relPath: string) => ipcRenderer.invoke(IPC.NOTES.GET_BACKLINKS, relPath),
-    resolveWikiLink: (link: string) => ipcRenderer.invoke(IPC.NOTES.RESOLVE_WIKI_LINK, link)
+    resolveWikiLink: (link: string) => ipcRenderer.invoke(IPC.NOTES.RESOLVE_WIKI_LINK, link),
+    showInExplorer: (relPath: string) => ipcRenderer.invoke(IPC.NOTES.SHOW_IN_EXPLORER, relPath)
   },
 
   auth: {

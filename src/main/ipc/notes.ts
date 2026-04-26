@@ -1,4 +1,4 @@
-import { ipcMain } from 'electron'
+import { ipcMain, shell } from 'electron'
 import { readdirSync, statSync, readFileSync, writeFileSync, renameSync, rmSync, mkdirSync } from 'fs'
 import { join, relative, extname, dirname } from 'path'
 import { IPC } from '../../types'
@@ -109,8 +109,20 @@ export function registerNotesHandlers(): void {
   ipcMain.handle(IPC.NOTES.DELETE, (_e, relPath: string) => {
     const vaultPath = requireVaultPath()
     const abs = join(vaultPath, relPath)
-    rmSync(abs)
-    indexService.removeFile(abs)
+    const isDir = statSync(abs).isDirectory()
+    if (isDir) {
+      rmSync(abs, { recursive: true })
+      // chokidar fires file-deleted events for contents — index updates automatically
+    } else {
+      rmSync(abs)
+      indexService.removeFile(abs)
+    }
+  })
+
+  ipcMain.handle(IPC.NOTES.SHOW_IN_EXPLORER, (_e, relPath: string) => {
+    const vaultPath = requireVaultPath()
+    const abs = join(vaultPath, relPath)
+    shell.showItemInFolder(abs)
   })
 
   ipcMain.handle(IPC.NOTES.CREATE_FOLDER, (_e, relPath: string) => {

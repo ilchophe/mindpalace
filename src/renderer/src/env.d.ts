@@ -47,6 +47,7 @@ declare global {
         createFolder: (relPath: string) => Promise<void>
         getBacklinks: (relPath: string) => Promise<string[]>
         resolveWikiLink: (link: string) => Promise<string | null>
+        showInExplorer: (relPath: string) => Promise<void>
       }
       auth: {
         getStatus: () => Promise<AuthStatus>

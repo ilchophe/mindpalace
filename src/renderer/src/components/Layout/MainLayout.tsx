@@ -10,7 +10,6 @@ import ConnectGitHubModal from '../Auth/ConnectGitHubModal'
 import ConflictModal from '../Sync/ConflictModal'
 import QuickSwitcher from '../Search/QuickSwitcher'
 import GraphView from '../Graph/GraphView'
-import DailyNoteButton from '../DailyNotes/DailyNoteButton'
 import CommandPalette from '../CommandPalette/CommandPalette'
 import SettingsPanel from '../Settings/SettingsPanel'
 
@@ -91,7 +90,6 @@ export default function MainLayout(): React.JSX.Element {
         {/* Quick action buttons */}
         {activeVault && (
           <div className="flex-shrink-0 border-t border-vault-border">
-            <DailyNoteButton />
             <button
               onClick={openGraph}
               className="flex items-center gap-2 px-3 py-1.5 text-xs text-vault-muted hover:text-vault-text hover:bg-vault-border/40 transition-colors w-full text-left"
