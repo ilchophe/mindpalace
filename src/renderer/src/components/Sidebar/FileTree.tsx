@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
+// Note: useRef is still used for dragSrcRef, newNameRef, createTarget tracking
 import { FilePlus, FolderPlus, ChevronRight, FileText, Folder, Image, File } from 'lucide-react'
 import type { NoteMetadata } from '@shared'
 import { useVaultStore } from '../../stores/vaultStore'
@@ -135,6 +136,43 @@ function ChevronIcon({ open }: { open: boolean }): React.JSX.Element {
   )
 }
 
+function RenameInput({
+  initialValue,
+  onSubmit,
+  onCancel,
+}: {
+  initialValue: string
+  onSubmit: (v: string) => void
+  onCancel: () => void
+}): React.JSX.Element {
+  const [value, setValue] = useState(initialValue)
+  // Guard against double-submit (Enter → blur both fire)
+  const submittedRef = useRef(false)
+
+  function commit(): void {
+    if (submittedRef.current) return
+    submittedRef.current = true
+    onSubmit(value)
+  }
+
+  return (
+    <input
+      // autoFocus avoids the need for a setTimeout + ref.select()
+      // and works correctly outside a <button> wrapper
+      autoFocus
+      value={value}
+      onChange={(e) => setValue(e.target.value)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') { e.preventDefault(); commit() }
+        if (e.key === 'Escape') { e.preventDefault(); onCancel() }
+      }}
+      onBlur={commit}   // commit on click-away, like VS Code / Obsidian
+      className="flex-1 rounded border border-vault-accent bg-vault-bg px-1.5 py-0 text-xs text-vault-text outline-none min-w-0"
+      onClick={(e) => e.stopPropagation()}
+    />
+  )
+}
+
 function TreeItem({
   node,
   depth,
@@ -148,69 +186,51 @@ function TreeItem({
   onContextMenu,
 }: TreeItemProps): React.JSX.Element {
   const [open, setOpen] = useState(true)
-  const [renameValue, setRenameValue] = useState('')
-  const renameInputRef = useRef<HTMLInputElement>(null)
   const isSelected = !node.isFolder && selectedPath === node.path
   const isDragOver = drag.dragOverPath === node.path
   const indent = depth * INDENT_PX
   const isRenaming = renamingPath === node.path
 
-  useEffect(() => {
-    if (isRenaming) {
-      setRenameValue(node.name.replace(/\.md$/, ''))
-      setTimeout(() => renameInputRef.current?.select(), 0)
-    }
-  }, [isRenaming, node.name])
-
   const baseClass =
     'relative flex items-center gap-1.5 w-full py-[3px] pr-2 text-left text-sm rounded transition-colors cursor-default'
   const dragOverClass = isDragOver ? 'bg-vault-accent/20 ring-1 ring-vault-accent/50' : ''
 
-  const nameDisplay = (
-    <>
-      <IndentGuides depth={depth} />
-      {isRenaming ? (
-        <input
-          ref={renameInputRef}
-          value={renameValue}
-          onChange={(e) => setRenameValue(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') { e.preventDefault(); onRenameSubmit(node.path, renameValue) }
-            if (e.key === 'Escape') onRenameCancel()
-          }}
-          onBlur={() => onRenameCancel()}
-          className="flex-1 rounded border border-vault-accent bg-vault-bg px-1.5 py-0 text-xs text-vault-text outline-none min-w-0"
-          onClick={(e) => e.stopPropagation()}
-        />
-      ) : null}
-    </>
-  )
-
+  // ── Folder ────────────────────────────────────────────────────────────────
   if (node.isFolder) {
     return (
-      <div
-        onDragLeave={drag.onDragLeave}
-        onDrop={(e) => drag.onDrop(e, node)}
-      >
-        <button
-          draggable={!isRenaming}
-          style={{ paddingLeft: `${indent + 4}px` }}
-          className={[baseClass, dragOverClass, 'text-vault-muted hover:text-vault-text hover:bg-white/[0.06]'].join(' ')}
-          onDragStart={(e) => drag.onDragStart(e, node.path)}
-          onDragOver={(e) => drag.onDragOver(e, node.path)}
-          onDrop={(e) => drag.onDrop(e, node)}
-          onContextMenu={(e) => onContextMenu(e, node)}
-          onClick={() => !isRenaming && setOpen((o) => !o)}
-        >
-          {nameDisplay}
-          {!isRenaming && (
-            <>
-              <ChevronIcon open={open} />
-              <FolderIcon open={open} />
-              <span className="truncate">{node.name}</span>
-            </>
-          )}
-        </button>
+      <div onDragLeave={drag.onDragLeave} onDrop={(e) => drag.onDrop(e, node)}>
+        {isRenaming ? (
+          // Render a plain div (not a button) so autoFocus works on the input
+          <div
+            style={{ paddingLeft: `${indent + 4}px` }}
+            className={[baseClass, 'text-vault-muted bg-white/[0.06]'].join(' ')}
+          >
+            <IndentGuides depth={depth} />
+            <ChevronIcon open={open} />
+            <FolderIcon open={open} />
+            <RenameInput
+              initialValue={node.name}
+              onSubmit={(v) => onRenameSubmit(node.path, v)}
+              onCancel={onRenameCancel}
+            />
+          </div>
+        ) : (
+          <button
+            draggable
+            style={{ paddingLeft: `${indent + 4}px` }}
+            className={[baseClass, dragOverClass, 'text-vault-muted hover:text-vault-text hover:bg-white/[0.06]'].join(' ')}
+            onDragStart={(e) => drag.onDragStart(e, node.path)}
+            onDragOver={(e) => drag.onDragOver(e, node.path)}
+            onDrop={(e) => drag.onDrop(e, node)}
+            onContextMenu={(e) => onContextMenu(e, node)}
+            onClick={() => setOpen((o) => !o)}
+          >
+            <IndentGuides depth={depth} />
+            <ChevronIcon open={open} />
+            <FolderIcon open={open} />
+            <span className="truncate">{node.name}</span>
+          </button>
+        )}
         {open &&
           node.children.map((child) => (
             <TreeItem
@@ -231,9 +251,28 @@ function TreeItem({
     )
   }
 
+  // ── File (note or asset) ──────────────────────────────────────────────────
+  if (isRenaming) {
+    return (
+      // Plain div — autoFocus on the input inside works correctly
+      <div
+        style={{ paddingLeft: `${indent + 8}px` }}
+        className={[baseClass, 'bg-white/[0.10]'].join(' ')}
+      >
+        <IndentGuides depth={depth} />
+        <FileText size={13} className="flex-shrink-0 text-vault-muted/60" />
+        <RenameInput
+          initialValue={node.name.replace(/\.md$/, '')}
+          onSubmit={(v) => onRenameSubmit(node.path, v)}
+          onCancel={onRenameCancel}
+        />
+      </div>
+    )
+  }
+
   return (
     <button
-      draggable={!isRenaming}
+      draggable
       style={{ paddingLeft: `${indent + 8}px` }}
       className={[
         baseClass,
@@ -250,30 +289,15 @@ function TreeItem({
       onDrop={(e) => drag.onDrop(e, node)}
       onContextMenu={(e) => onContextMenu(e, node)}
       onClick={() => {
-        if (isRenaming) return
         if (node.note) onSelect(node.note)
         else if (node.assetExt) {
-          // Images open inline in the editor; other assets open in Explorer
           if (IMAGE_EXTS_SET.has(node.assetExt)) onOpenAsset(node.path)
           else window.api.notes.showInExplorer(node.path)
         }
       }}
     >
       <IndentGuides depth={depth} />
-      {isRenaming ? (
-        <input
-          ref={renameInputRef}
-          value={renameValue}
-          onChange={(e) => setRenameValue(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') { e.preventDefault(); onRenameSubmit(node.path, renameValue) }
-            if (e.key === 'Escape') onRenameCancel()
-          }}
-          onBlur={() => onRenameCancel()}
-          className="flex-1 rounded border border-vault-accent bg-vault-bg px-1.5 py-0 text-xs text-vault-text outline-none min-w-0"
-          onClick={(e) => e.stopPropagation()}
-        />
-      ) : node.assetExt ? (
+      {node.assetExt ? (
         <>
           {IMAGE_EXTS_SET.has(node.assetExt)
             ? <Image size={13} className="flex-shrink-0 text-vault-muted/40" />
