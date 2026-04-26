@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { FilePlus, FolderPlus, ChevronRight, FileText, Folder } from 'lucide-react'
 import type { NoteMetadata } from '@shared'
 import { useVaultStore } from '../../stores/vaultStore'
 import { useEditorStore } from '../../stores/editorStore'
@@ -99,23 +100,17 @@ function IndentGuides({ depth }: { depth: number }): React.JSX.Element | null {
   )
 }
 
+function FolderIcon({ open: _open }: { open: boolean }): React.JSX.Element {
+  return <Folder size={14} className="flex-shrink-0 text-vault-accent/80" />
+}
+
 function ChevronIcon({ open }: { open: boolean }): React.JSX.Element {
   return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="14"
-      height="14"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="flex-shrink-0 transition-transform duration-150 text-vault-muted/70"
+    <ChevronRight
+      size={12}
+      className="flex-shrink-0 transition-transform duration-150 text-vault-muted/60"
       style={{ transform: open ? 'rotate(90deg)' : 'rotate(0deg)' }}
-    >
-      <polyline points="9 18 15 12 9 6" />
-    </svg>
+    />
   )
 }
 
@@ -189,6 +184,7 @@ function TreeItem({
           {!isRenaming && (
             <>
               <ChevronIcon open={open} />
+              <FolderIcon open={open} />
               <span className="truncate">{node.name}</span>
             </>
           )}
@@ -215,7 +211,7 @@ function TreeItem({
   return (
     <button
       draggable={!isRenaming}
-      style={{ paddingLeft: `${indent + 22}px` }}
+      style={{ paddingLeft: `${indent + 8}px` }}
       className={[
         baseClass,
         dragOverClass,
@@ -243,7 +239,10 @@ function TreeItem({
           onClick={(e) => e.stopPropagation()}
         />
       ) : (
-        <span className="truncate">{node.name.replace(/\.md$/, '')}</span>
+        <>
+          <FileText size={13} className="flex-shrink-0 text-vault-muted/60" />
+          <span className="truncate">{node.name.replace(/\.md$/, '')}</span>
+        </>
       )}
     </button>
   )
@@ -399,7 +398,7 @@ export default function FileTree(): React.JSX.Element {
     // Create in same folder
     items.push({
       label: 'New note',
-      icon: '📄',
+      icon: 'file-text',
       onClick: async () => {
         const name = window.prompt('Note name:', 'untitled')
         if (!name?.trim()) return
@@ -413,7 +412,7 @@ export default function FileTree(): React.JSX.Element {
     })
     items.push({
       label: 'New folder',
-      icon: '📁',
+      icon: 'folder-plus',
       onClick: async () => {
         const name = window.prompt('Folder name:', 'New folder')
         if (!name?.trim()) return
@@ -428,7 +427,7 @@ export default function FileTree(): React.JSX.Element {
 
     items.push({
       label: 'Rename…',
-      icon: '✏️',
+      icon: 'pencil',
       onClick: () => startRename(node.path)
     })
 
@@ -436,13 +435,13 @@ export default function FileTree(): React.JSX.Element {
 
     items.push({
       label: 'Copy path',
-      icon: '📋',
+      icon: 'copy',
       onClick: () => navigator.clipboard.writeText(node.path)
     })
 
     items.push({
       label: 'Show in Explorer',
-      icon: '📂',
+      icon: 'folder-open',
       onClick: () => window.api.notes.showInExplorer(node.path)
     })
 
@@ -450,7 +449,7 @@ export default function FileTree(): React.JSX.Element {
 
     items.push({
       label: 'Delete',
-      icon: '🗑️',
+      icon: 'trash',
       danger: true,
       onClick: () => handleDelete(node)
     })
@@ -538,16 +537,16 @@ export default function FileTree(): React.JSX.Element {
               <button
                 onClick={() => startCreating('note')}
                 title="New note"
-                className="text-vault-muted hover:text-vault-text hover:bg-vault-border/40 rounded px-1 py-0.5 text-xs transition-colors"
+                className="text-vault-muted hover:text-vault-text hover:bg-vault-border/40 rounded p-1 transition-colors"
               >
-                📄+
+                <FilePlus size={14} />
               </button>
               <button
                 onClick={() => startCreating('folder')}
                 title="New folder"
-                className="text-vault-muted hover:text-vault-text hover:bg-vault-border/40 rounded px-1 py-0.5 text-xs transition-colors"
+                className="text-vault-muted hover:text-vault-text hover:bg-vault-border/40 rounded p-1 transition-colors"
               >
-                📁+
+                <FolderPlus size={14} />
               </button>
             </>
           )}
@@ -570,8 +569,8 @@ export default function FileTree(): React.JSX.Element {
               placeholder={creating === 'note' ? 'note-name' : 'folder-name'}
               className="flex-1 rounded border border-vault-accent bg-vault-bg px-2 py-1 text-xs text-vault-text outline-none placeholder:text-vault-muted"
             />
-            <button type="submit" className="rounded bg-vault-accent/20 hover:bg-vault-accent/30 px-2 py-1 text-xs text-vault-accent transition-colors">✓</button>
-            <button type="button" onClick={cancelCreate} className="rounded hover:bg-vault-border/40 px-2 py-1 text-xs text-vault-muted transition-colors">✕</button>
+            <button type="submit" className="rounded bg-vault-accent/20 hover:bg-vault-accent/30 px-2 py-1 text-xs text-vault-accent transition-colors flex items-center">✓</button>
+            <button type="button" onClick={cancelCreate} className="rounded hover:bg-vault-border/40 px-2 py-1 text-xs text-vault-muted transition-colors flex items-center">✕</button>
           </form>
         </div>
       )}

@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react'
+import { FolderOpen, Plus, X, Database } from 'lucide-react'
 import type { VaultSummary } from '@shared'
 import { slugify } from '@shared'
 import { useVaultStore } from '../../stores/vaultStore'
@@ -85,10 +86,19 @@ export default function VaultManagerScreen(): React.JSX.Element {
       <div className="flex items-center justify-between px-8 py-5 border-b border-vault-border">
         <h1 className="text-xl font-bold text-vault-text">MindPalace Vaults</h1>
         <div className="flex gap-2">
-          <button className="btn-secondary" onClick={handlePickAndOpen}>↗ Open existing</button>
-          <button className="btn-primary" onClick={() => setShowNewForm(true)}>+ New vault</button>
+          <button className="btn-secondary flex items-center gap-1.5" onClick={handlePickAndOpen}>
+            <FolderOpen size={14} />
+            Open existing
+          </button>
+          <button className="btn-primary flex items-center gap-1.5" onClick={() => setShowNewForm(true)}>
+            <Plus size={14} />
+            New vault
+          </button>
           {activeVault && (
-            <button className="btn-ghost" onClick={closeManager}>✕ Close</button>
+            <button className="btn-ghost flex items-center gap-1.5" onClick={closeManager}>
+              <X size={14} />
+              Close
+            </button>
           )}
         </div>
       </div>
@@ -182,7 +192,7 @@ export default function VaultManagerScreen(): React.JSX.Element {
           <div className="flex flex-col items-center justify-center h-full gap-4 text-vault-muted">
             {vaults.length === 0 ? (
               <>
-                <p className="text-4xl">🗄</p>
+                <Database size={48} className="text-vault-border" />
                 <p className="text-lg font-medium text-vault-text">No vaults yet</p>
                 <p className="text-sm">Create a new vault or open an existing folder to get started.</p>
               </>

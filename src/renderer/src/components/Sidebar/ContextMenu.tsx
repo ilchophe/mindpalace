@@ -1,7 +1,26 @@
 import React, { useEffect, useRef } from 'react'
+import {
+  FileText,
+  FolderPlus,
+  Pencil,
+  Copy,
+  FolderOpen,
+  Trash2,
+  type LucideIcon
+} from 'lucide-react'
+
+const ICON_MAP: Record<string, LucideIcon> = {
+  'file-text':   FileText,
+  'folder-plus': FolderPlus,
+  'pencil':      Pencil,
+  'copy':        Copy,
+  'folder-open': FolderOpen,
+  'trash':       Trash2,
+}
 
 export interface ContextMenuItem {
   label: string
+  /** Lucide icon key (see ICON_MAP) */
   icon?: string
   danger?: boolean
   separator?: boolean
@@ -46,17 +65,18 @@ export default function ContextMenu({ x, y, items, onClose }: Props): React.JSX.
     <div
       ref={menuRef}
       style={style}
-      className="min-w-[180px] rounded-md border border-vault-border bg-vault-surface shadow-xl py-1 text-sm"
+      className="min-w-[190px] rounded-lg border border-vault-border bg-vault-surface shadow-2xl py-1 text-sm"
     >
       {items.map((item, i) => {
         if (item.separator) {
-          return <div key={i} className="my-1 border-t border-vault-border/60" />
+          return <div key={i} className="my-1 border-t border-vault-border/50" />
         }
+        const IconComp = item.icon ? ICON_MAP[item.icon] : undefined
         return (
           <button
             key={i}
             className={[
-              'flex items-center gap-2.5 w-full text-left px-3 py-1.5 transition-colors',
+              'flex items-center gap-2.5 w-full text-left px-3 py-[5px] transition-colors',
               item.danger
                 ? 'text-red-400 hover:bg-red-500/10'
                 : 'text-vault-text hover:bg-vault-border/50',
@@ -66,7 +86,10 @@ export default function ContextMenu({ x, y, items, onClose }: Props): React.JSX.
               item.onClick?.()
             }}
           >
-            {item.icon && <span className="text-base w-4 text-center">{item.icon}</span>}
+            {IconComp
+              ? <IconComp size={14} className={item.danger ? 'text-red-400' : 'text-vault-muted'} />
+              : <span className="w-[14px]" />
+            }
             <span>{item.label}</span>
           </button>
         )

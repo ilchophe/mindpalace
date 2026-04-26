@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { ChevronDown, ChevronRight } from 'lucide-react'
 import { useEditorStore } from '../../stores/editorStore'
 
 export default function BacklinksPanel(): React.JSX.Element | null {
@@ -41,7 +42,7 @@ export default function BacklinksPanel(): React.JSX.Element | null {
         onClick={() => setOpen((o) => !o)}
       >
         <span>Backlinks ({backlinks.length})</span>
-        <span>{open ? '▾' : '▸'}</span>
+        {open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
       </button>
       {open && (
         <ul className="max-h-32 overflow-y-auto pb-1">
