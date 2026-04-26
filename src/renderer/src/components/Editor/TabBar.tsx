@@ -64,17 +64,18 @@ export default function TabBar(): React.JSX.Element {
     active?.scrollIntoView({ inline: 'nearest', block: 'nearest' })
   }, [activeTabId])
 
-  // The outer container is the drag region — interactive children opt out
+  // Outer container is the drag region. Individual buttons opt out with app-no-drag.
+  // The strip div itself has NO drag class so its empty area inherits drag from parent.
   return (
     <div className="app-drag relative flex items-stretch h-9 border-b border-vault-border bg-vault-bg flex-shrink-0">
-      {/* Tab strip — overflow hidden so tabs never wrap or scroll */}
-      <div ref={stripRef} className="flex items-stretch overflow-hidden flex-1 app-no-drag">
+      {/* Tab strip — flex-1 fills all width, empty area stays draggable */}
+      <div ref={stripRef} className="flex items-stretch overflow-hidden flex-1">
         {tabs.map((tab) => (
           <button
             key={tab.id}
             data-active={tab.id === activeTabId ? 'true' : 'false'}
             className={[
-              'group flex items-center gap-1.5 px-3 h-full text-sm border-r border-vault-border',
+              'app-no-drag group flex items-center gap-1.5 px-3 h-full text-sm border-r border-vault-border',
               'max-w-[10rem] transition-colors flex-shrink-0',
               activeTabId === tab.id
                 ? 'bg-vault-surface text-vault-text border-t-2 border-t-vault-accent'
@@ -102,10 +103,10 @@ export default function TabBar(): React.JSX.Element {
 
       {/* Overflow dropdown — only shown when tabs overflow */}
       {hasOverflow && (
-        <div className="relative flex-shrink-0 app-no-drag">
+        <div className="relative flex-shrink-0">
           <button
             title="All open tabs"
-            className="h-full px-2 border-l border-vault-border text-vault-muted hover:text-vault-text hover:bg-vault-surface/50 flex items-center transition-colors"
+            className="app-no-drag h-full px-2 border-l border-vault-border text-vault-muted hover:text-vault-text hover:bg-vault-surface/50 flex items-center transition-colors"
             onClick={() => setShowDropdown((d) => !d)}
           >
             <ChevronDown
@@ -162,9 +163,6 @@ export default function TabBar(): React.JSX.Element {
           )}
         </div>
       )}
-
-      {/* Spacer that acts as drag region when no tabs fill the bar */}
-      <div className="flex-1 min-w-[1rem]" />
 
       {/* Window controls — right side, only on Windows / Linux */}
       {!isMac && <WindowControls />}

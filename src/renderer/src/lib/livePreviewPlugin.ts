@@ -19,6 +19,65 @@ import type { EditorState } from '@codemirror/state'
 import type { Range } from '@codemirror/state'
 import { tags } from '@lezer/highlight'
 
+// ── highlight.js (syntax highlighting inside fenced code blocks) ─────────────
+import hljs from 'highlight.js/lib/core'
+import langBash       from 'highlight.js/lib/languages/bash'
+import langShell      from 'highlight.js/lib/languages/shell'
+import langYaml       from 'highlight.js/lib/languages/yaml'
+import langJs         from 'highlight.js/lib/languages/javascript'
+import langTs         from 'highlight.js/lib/languages/typescript'
+import langPython     from 'highlight.js/lib/languages/python'
+import langJson       from 'highlight.js/lib/languages/json'
+import langSql        from 'highlight.js/lib/languages/sql'
+import langCss        from 'highlight.js/lib/languages/css'
+import langXml        from 'highlight.js/lib/languages/xml'
+import langGo         from 'highlight.js/lib/languages/go'
+import langRust       from 'highlight.js/lib/languages/rust'
+import langCpp        from 'highlight.js/lib/languages/cpp'
+import langMarkdown   from 'highlight.js/lib/languages/markdown'
+import langDiff       from 'highlight.js/lib/languages/diff'
+
+hljs.registerLanguage('bash',       langBash)
+hljs.registerLanguage('sh',         langBash)
+hljs.registerLanguage('shell',      langShell)
+hljs.registerLanguage('yaml',       langYaml)
+hljs.registerLanguage('yml',        langYaml)
+hljs.registerLanguage('javascript', langJs)
+hljs.registerLanguage('js',         langJs)
+hljs.registerLanguage('typescript', langTs)
+hljs.registerLanguage('ts',         langTs)
+hljs.registerLanguage('python',     langPython)
+hljs.registerLanguage('py',         langPython)
+hljs.registerLanguage('json',       langJson)
+hljs.registerLanguage('sql',        langSql)
+hljs.registerLanguage('css',        langCss)
+hljs.registerLanguage('html',       langXml)
+hljs.registerLanguage('xml',        langXml)
+hljs.registerLanguage('go',         langGo)
+hljs.registerLanguage('rust',       langRust)
+hljs.registerLanguage('rs',         langRust)
+hljs.registerLanguage('cpp',        langCpp)
+hljs.registerLanguage('c',          langCpp)
+hljs.registerLanguage('markdown',   langMarkdown)
+hljs.registerLanguage('md',         langMarkdown)
+hljs.registerLanguage('diff',       langDiff)
+
+/** Highlight code with hljs; falls back to plain text on unknown language. */
+function hljsHighlight(code: string, lang: string): string {
+  const key = lang.toLowerCase()
+  try {
+    if (key && hljs.getLanguage(key)) {
+      return hljs.highlight(code, { language: key, ignoreIllegals: true }).value
+    }
+    // Auto-detect only for short snippets to keep it fast
+    if (code.length < 4000) {
+      return hljs.highlightAuto(code).value
+    }
+  } catch { /* fall through */ }
+  // Escape HTML for plain-text display
+  return code.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+}
+
 // ── Note context facet ────────────────────────────────────────────────────────
 // Injected by CodeMirrorEditor so the Image widget can resolve vault-relative paths.
 
@@ -84,7 +143,8 @@ class CodeBlockWidget extends WidgetType {
 
     const pre = document.createElement('pre')
     const code = document.createElement('code')
-    code.textContent = this.code
+    code.className = this.lang ? `hljs language-${this.lang}` : 'hljs'
+    code.innerHTML = hljsHighlight(this.code, this.lang)
     pre.appendChild(code)
     wrap.appendChild(pre)
     return wrap
@@ -296,6 +356,28 @@ function buildDecorations(state: EditorState): DecorationSet {
     return Decoration.none
   }
 
+  // ── Regex fallback: images with spaces in src (not valid CommonMark so the
+  // syntax tree never emits an Image node for them) ──────────────────────────
+  // Build a fast range-occupied lookup from what we already decorated
+  const occupied = new Set(deco.map(d => `${d.from}:${d.to}`))
+  const docText = state.doc.toString()
+  const imgRe = /!\[([^\]]*)\]\(([^)]+)\)/g
+  let im: RegExpExecArray | null
+  while ((im = imgRe.exec(docText)) !== null) {
+    const src = im[2]
+    if (!src.includes(' ')) continue                          // already handled by syntax tree
+    const from = im.index
+    const to   = from + im[0].length
+    if (occupied.has(`${from}:${to}`)) continue               // already decorated
+    if (cursorOverlaps(state, from, to)) continue
+    const resolvedUrl = toVaultFileUrl(noteCtx, src)
+    deco.push(
+      Decoration.replace({
+        widget: new ImageWidget(src, im[1], resolvedUrl),
+      }).range(from, to),
+    )
+  }
+
   return Decoration.set(deco.sort((a, b) => a.from - b.from))
 }
 
@@ -386,14 +468,16 @@ export const mindpalaceTheme = EditorView.theme({
     borderRadius: '6px',
     padding: '12px 16px',
     margin: '6px 0',
-    overflow: 'auto',
+    overflow: 'hidden',
   },
   '.cm-rendered-codeblock pre': {
     margin: '0',
     fontFamily: "'JetBrains Mono','Fira Code',monospace",
     fontSize: '0.875em',
     lineHeight: '1.55',
-    whiteSpace: 'pre',
+    whiteSpace: 'pre-wrap',
+    wordBreak: 'break-all',
+    overflowWrap: 'break-word',
     color: 'var(--vault-text)',
   },
   '.cm-rendered-codeblock code': { background: 'transparent', padding: '0', border: 'none' },
