@@ -20,3 +20,5 @@ Each skill captures the key pattern so it can be applied to new projects.
 | [codemirror-live-preview](./codemirror-live-preview.md) | post-6 | CM6 StateField live preview: headings, bold, italic, code blocks, images, HR |
 | [electron-custom-protocol](./electron-custom-protocol.md) | post-6 | vault-file:// custom Electron protocol for serving local vault assets |
 | [filetree-context-menu](./filetree-context-menu.md) | post-6 | Right-click context menu with inline rename, delete, show in explorer |
+| [configurable-auto-sync](./configurable-auto-sync.md) | 7 | User-selectable sync interval (Never / 5 / 15 / 30 min / 1 hour) with SyncService setInterval + Settings UI |
+| [vault-import-obsidian](./vault-import-obsidian.md) | 7 | Import any folder (Obsidian vault) with image copy, wiki-link rewrite, and index rebuild |
