@@ -2,11 +2,12 @@ import { create } from 'zustand'
 import type { NoteMetadata } from '@shared'
 
 export interface OpenTab {
-  id: string // same as NoteMetadata.id
+  id: string // same as NoteMetadata.id, or "asset:<relPath>" for non-text files
   relativePath: string
   title: string
   content: string
   isDirty: boolean
+  isAsset?: boolean  // true for image / non-text files — no editor shown
 }
 
 export type ViewMode = 'edit' | 'split' | 'preview'
@@ -17,6 +18,7 @@ interface EditorStore {
   viewMode: ViewMode
 
   openTab: (note: NoteMetadata) => Promise<void>
+  openAssetTab: (relativePath: string) => void
   closeTab: (id: string) => void
   setActiveTab: (id: string) => void
   setContent: (id: string, content: string, dirty?: boolean) => void
@@ -51,6 +53,17 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
         }
       ],
       activeTabId: note.id
+    }))
+  },
+
+  openAssetTab: (relativePath) => {
+    const id = `asset:${relativePath}`
+    const existing = get().tabs.find(t => t.id === id)
+    if (existing) { set({ activeTabId: id }); return }
+    const title = relativePath.split('/').pop() ?? relativePath
+    set(s => ({
+      tabs: [...s.tabs, { id, relativePath, title, content: '', isDirty: false, isAsset: true }],
+      activeTabId: id
     }))
   },
 

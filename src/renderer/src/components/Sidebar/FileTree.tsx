@@ -91,6 +91,7 @@ interface TreeItemProps {
   depth: number
   selectedPath: string | null
   onSelect: (note: NoteMetadata) => void
+  onOpenAsset: (relPath: string) => void
   drag: DragHandlers
   renamingPath: string | null
   onRenameSubmit: (oldPath: string, newName: string) => void
@@ -139,6 +140,7 @@ function TreeItem({
   depth,
   selectedPath,
   onSelect,
+  onOpenAsset,
   drag,
   renamingPath,
   onRenameSubmit,
@@ -161,7 +163,7 @@ function TreeItem({
   }, [isRenaming, node.name])
 
   const baseClass =
-    'relative flex items-center gap-1.5 w-full py-[3px] pr-2 text-left text-sm rounded transition-colors cursor-grab'
+    'relative flex items-center gap-1.5 w-full py-[3px] pr-2 text-left text-sm rounded transition-colors cursor-default'
   const dragOverClass = isDragOver ? 'bg-vault-accent/20 ring-1 ring-vault-accent/50' : ''
 
   const nameDisplay = (
@@ -193,7 +195,7 @@ function TreeItem({
         <button
           draggable={!isRenaming}
           style={{ paddingLeft: `${indent + 4}px` }}
-          className={[baseClass, dragOverClass, 'text-vault-muted hover:text-vault-text hover:bg-vault-border/30'].join(' ')}
+          className={[baseClass, dragOverClass, 'text-vault-muted hover:text-vault-text hover:bg-white/[0.06]'].join(' ')}
           onDragStart={(e) => drag.onDragStart(e, node.path)}
           onDragOver={(e) => drag.onDragOver(e, node.path)}
           onDrop={(e) => drag.onDrop(e, node)}
@@ -217,6 +219,7 @@ function TreeItem({
               depth={depth + 1}
               selectedPath={selectedPath}
               onSelect={onSelect}
+              onOpenAsset={onOpenAsset}
               drag={drag}
               renamingPath={renamingPath}
               onRenameSubmit={onRenameSubmit}
@@ -235,7 +238,11 @@ function TreeItem({
       className={[
         baseClass,
         dragOverClass,
-        isSelected ? 'bg-vault-accent/20 text-vault-accent' : 'text-vault-text hover:bg-vault-border/30',
+        node.assetExt
+          ? 'text-vault-muted/80 hover:bg-white/[0.06]'
+          : isSelected
+            ? 'bg-white/[0.10] text-vault-text'
+            : 'text-vault-text hover:bg-white/[0.06]',
       ].join(' ')}
       onDragStart={(e) => drag.onDragStart(e, node.path)}
       onDragOver={(e) => drag.onDragOver(e, node.path)}
@@ -245,7 +252,11 @@ function TreeItem({
       onClick={() => {
         if (isRenaming) return
         if (node.note) onSelect(node.note)
-        else if (node.assetExt) window.api.notes.showInExplorer(node.path)
+        else if (node.assetExt) {
+          // Images open inline in the editor; other assets open in Explorer
+          if (IMAGE_EXTS_SET.has(node.assetExt)) onOpenAsset(node.path)
+          else window.api.notes.showInExplorer(node.path)
+        }
       }}
     >
       <IndentGuides depth={depth} />
@@ -285,7 +296,7 @@ function TreeItem({
 
 export default function FileTree(): React.JSX.Element {
   const { notes, assets, selectedNote, setSelectedNote, loadNotes, loadAssets, activeConfig } = useVaultStore()
-  const { openTab, renameItemPath, closeTab, tabs } = useEditorStore()
+  const { openTab, openAssetTab, renameItemPath, closeTab, tabs } = useEditorStore()
   const [search, setSearch] = useState('')
   const [creating, setCreating] = useState<'note' | 'folder' | null>(null)
   const [newName, setNewName] = useState('')
@@ -646,6 +657,7 @@ export default function FileTree(): React.JSX.Element {
               depth={0}
               selectedPath={selectedNote?.relativePath ?? null}
               onSelect={handleNoteSelect}
+              onOpenAsset={openAssetTab}
               drag={dragHandlers}
               renamingPath={renamingPath}
               onRenameSubmit={handleRenameSubmit}
