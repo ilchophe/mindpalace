@@ -1,6 +1,6 @@
 # MindPalace — CLAUDE.md
 
-Tech: Electron 28 + electron-vite 2 + React 18 + TypeScript 5 + Monaco Editor + isomorphic-git
+Tech: Electron 28 + electron-vite 2 + React 18 + TypeScript 5 + CodeMirror 6 + isomorphic-git
 
 ## Architecture Rules
 
@@ -67,8 +67,65 @@ Each skill: `.claude/skills/{skill-name}.md`
 
 - [x] Phase 0 — Scaffold
 - [x] Phase 1 — Vault Management & File Tree
-- [x] Phase 2 — Monaco Editor + Markdown Preview
+- [x] Phase 2 — Monaco Editor + Markdown Preview (replaced by CM6 live preview, post-6)
 - [x] Phase 3 — GitHub Auth & Git Sync
 - [x] Phase 4 — Search, Quick Switcher & Tags
 - [x] Phase 5 — Images, Graph View & Daily Notes
 - [x] Phase 6 — Command Palette, Settings & Packaging
+- [x] Post-6 — CM6 live preview, vault-file:// protocol, Lucide icons, context menu, Electron-safe dialogs
+- [ ] Phase 7a — Configurable Auto-Sync (user-selectable interval: Never / 5 / 15 / 30 min / 1 hour)
+- [ ] Phase 7b — Vault Import (import Obsidian or any folder: copy images, rewrite wiki-link embeds, rebuild index)
+
+## Phase 7 Specs
+
+### Phase 7a — Configurable Auto-Sync
+**Goal**: Let the user choose how often MindPalace auto-commits and pushes to GitHub.
+
+**Deliverables**:
+- `VaultConfig.syncIntervalMinutes` field (0 = disabled; options: 5, 15, 30, 60)
+- `SyncService.startAutoSync` / `stopAutoSync` / `restartAutoSync` using `setInterval`
+- `git:setSyncInterval` IPC handler — persists to config, restarts timer immediately
+- Settings panel "Auto-sync interval" dropdown
+- SyncPanel shows current interval ("every 5m") next to the sync status dot
+- Migration: existing vaults without the field default to `syncIntervalMinutes: 5`
+
+**Key files**:
+- `src/types/index.ts` — add field to `VaultConfig`
+- `src/main/services/SyncService.ts` — timer management
+- `src/main/ipc/git.ts` — `git:setSyncInterval` handler
+- `src/renderer/src/components/Settings/SettingsPanel.tsx` — interval picker
+- `src/renderer/src/components/Sync/SyncPanel.tsx` — display label
+
+**Skill**: `.claude/skills/configurable-auto-sync.md`
+
+---
+
+### Phase 7b — Vault Import (Obsidian / any folder)
+**Goal**: Import an existing folder into the active vault, preserving images and
+rewriting Obsidian-style wiki-link embeds to standard Markdown.
+
+**Deliverables**:
+- `ImportService.ts` — walk folder, copy `.md` + image files, rewrite `![[img.png]]` → `![](images/img.png)`
+- `vault:importFolder` IPC handler + `vault:importProgress` push events
+- `ImportFolderModal.tsx` — folder picker + live progress bar (scanning / copying / rewriting / done)
+- "Import folder" button in VaultManagerScreen header
+- After import: rebuild index, reload file tree
+
+**Key files**:
+- `src/main/services/ImportService.ts`
+- `src/main/ipc/vault.ts` — add handler
+- `src/renderer/src/components/VaultManager/ImportFolderModal.tsx`
+- `src/types/index.ts` — `ImportProgress`, `ImportResult`, IPC constants
+
+**Obsidian formats handled**:
+| Format | Action |
+|---|---|
+| `![[image.png]]` | → `![](images/image.png)` |
+| `![[folder/img.png]]` | → `![](folder/img.png)` |
+| `[[Note Title]]` | unchanged (wiki-link, not image) |
+| `![](image.png)` bare | → `![](images/image.png)` |
+| `![](https://...)` | unchanged (external) |
+
+**Skipped**: `.obsidian/`, `.git/`, any dot-directory, files > 50 MB
+
+**Skill**: `.claude/skills/vault-import-obsidian.md`
