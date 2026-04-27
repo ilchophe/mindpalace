@@ -1,8 +1,20 @@
 # MindPalace — Technology Stack Upgrade Plan
 
+## Completion
+
+**Completed**: 2026-04-27  
+**Actual effort**: ~1 session (all 5 phases completed in sequence)  
+**Estimated effort**: 2–3 sessions  
+
+All phases 8a–8e completed successfully. All checks pass: `npm run build`, `npm test`, `npm run typecheck`, `npm run lint` (0 errors).
+
+Deferred items: `electron-store` kept at 8.2.0 (ESM migration), `chokidar` kept at 3.6.0 (ESM-only in v5), `monaco-editor` peer dependency added explicitly.
+
+---
+
 > **Generated**: 2026-04-27  
 > **Trigger**: Dependabot PRs #5 (Electron 28→41) and #6 (vite 5→8 / electron-vite 2→5 / vitest 1→4)  
-> **Current audit**: `npm audit` reports **21 vulnerabilities — 10 high, 7 moderate, 4 low**
+> **Original audit**: `npm audit` reported **21 vulnerabilities — 10 high, 7 moderate, 4 low** (now resolved)
 
 Both Dependabot PRs were reviewed and **held** — each contains confirmed breaking changes that
 require a coordinated, phased migration rather than an auto-merge.  This document is the

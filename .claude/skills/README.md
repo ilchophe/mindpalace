@@ -22,3 +22,4 @@ Each skill captures the key pattern so it can be applied to new projects.
 | [filetree-context-menu](./filetree-context-menu.md) | post-6 | Right-click context menu with inline rename, delete, show in explorer |
 | [configurable-auto-sync](./configurable-auto-sync.md) | 7 | User-selectable sync interval (Never / 5 / 15 / 30 min / 1 hour) with SyncService setInterval + Settings UI |
 | [vault-import-obsidian](./vault-import-obsidian.md) | 7 | Import any folder (Obsidian vault) with image copy, wiki-link rewrite, and index rebuild |
+| [tech-stack-upgrade](./tech-stack-upgrade.md) | 8 | Full tech stack upgrade: Electron 41, Vite 7, electron-vite 5, React 19, Zustand 5, Tailwind 4, ESLint 9, TypeScript 6 | Full tech stack upgrade: Electron 41, Vite 8, electron-vite 5, React 19, Zustand 5, Tailwind 4, ESLint 9, TypeScript 6 |

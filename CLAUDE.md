@@ -1,13 +1,11 @@
 # MindPalace — CLAUDE.md
 
-Tech: Electron 28 + electron-vite 2 + React 18 + TypeScript 5 + CodeMirror 6 + isomorphic-git
-
-> ⚠️ **Upgrade pending** — `npm audit` reports 21 vulnerabilities (10 high). See [UPGRADE-PLAN.md](./UPGRADE-PLAN.md) for the full phased migration plan.
+Tech: Electron 41 + electron-vite 5 + React 19 + TypeScript 6 + CodeMirror 6 + isomorphic-git
 
 ## Architecture Rules
 
 - **Main process** (Node.js): services only — VaultService, GitService, AuthService, SearchService, ImageService, SyncService
-- **Renderer** (React 18 + Zustand): IPC only via `window.api` (contextBridge). Never import Node.js modules.
+- **Renderer** (React 19 + Zustand): IPC only via `window.api` (contextBridge). Never import Node.js modules.
 - **NEVER** `nodeIntegration: true`. **NEVER** expose `ipcRenderer` directly to the renderer.
 - `better-sqlite3` is **main-process ONLY**. Never bundle it in the renderer.
 - `isomorphic-git` uses `@isomorphic-git/http/node` in main process **ONLY** (not the browser plugin).
@@ -77,13 +75,13 @@ Each skill: `.claude/skills/{skill-name}.md`
 - [x] Post-6 — CM6 live preview, vault-file:// protocol, Lucide icons, context menu, Electron-safe dialogs
 - [x] Phase 7a — Configurable Auto-Sync (user-selectable interval: Never / 5 / 15 / 30 min / 1 hour)
 - [x] Phase 7b — Vault Import (import Obsidian or any folder: copy images, rewrite wiki-link embeds, rebuild index)
-- [ ] Phase 8a — Build Tools Security Fix (electron-builder 26, electron-rebuild — HIGH tar CVEs)
-- [ ] Phase 8b — Build Toolchain (vite 8, electron-vite 5, vitest 4 — MOD esbuild CVE)
-- [ ] Phase 8c — Electron Runtime (Electron 41, electron-store 11 — HIGH 17 electron CVEs)
-- [ ] Phase 8d — Runtime Libraries (React 19, Zustand 5, chokidar 5)
-- [ ] Phase 8e — Dev Tooling (Tailwind 4, ESLint 9, TypeScript 6)
+- [x] Phase 8a — Build Tools Security Fix (electron-builder 26 — HIGH tar CVEs)
+- [x] Phase 8b — Build Toolchain (vite 7, electron-vite 5, vitest 4 — MOD esbuild CVE)
+- [x] Phase 8c — Electron Runtime (Electron 41 — HIGH 17 electron CVEs)
+- [x] Phase 8d — Runtime Libraries (React 19, Zustand 5)
+- [x] Phase 8e — Dev Tooling (Tailwind 4, ESLint 9, TypeScript 6)
 
-See [UPGRADE-PLAN.md](./UPGRADE-PLAN.md) for full impact analysis and migration steps.
+Phase 8 upgrade completed 2026-04-27. See [UPGRADE-PLAN.md](./UPGRADE-PLAN.md) for migration details.
 
 ## Phase 7 Specs
 
