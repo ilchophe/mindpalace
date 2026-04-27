@@ -49,11 +49,12 @@ export default function VaultCard({ vault, isActive, onDeleteRequest }: Props): 
   return (
     <div
       className={[
-        'relative flex flex-col gap-2 rounded-xl p-4 border cursor-pointer transition-colors',
+        'relative flex flex-col gap-2 rounded-xl p-4 border cursor-pointer transition-colors select-none',
         'bg-vault-surface hover:border-vault-accent',
         isActive ? 'border-vault-accent' : 'border-vault-border'
       ].join(' ')}
-      onClick={() => switchVault(vault.id)}
+      onDoubleClick={() => switchVault(vault.id)}
+      title="Double-click to open"
     >
       {/* Pin indicator */}
       {vault.isPinned && (

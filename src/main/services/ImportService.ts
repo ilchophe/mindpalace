@@ -1,4 +1,4 @@
-import { cpSync, readdirSync, statSync, readFileSync, writeFileSync, mkdirSync } from 'fs'
+import { cpSync, readdirSync, statSync, readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs'
 import { join, relative, extname, dirname, basename } from 'path'
 import type { ImportProgress, ImportResult } from '../../types'
 
@@ -71,7 +71,8 @@ class ImportService {
           content,
           rel,
           imageSubfolder,
-          imageMap
+          imageMap,
+          vaultPath
         )
         result.referencesRewritten += count
         writeFileSync(dest, rewritten, 'utf8')
@@ -125,11 +126,13 @@ class ImportService {
     content: string,
     noteRelPath: string,
     imageSubfolder: string,
-    imageMap?: Map<string, string>
+    imageMap?: Map<string, string>,
+    vaultPath?: string
   ): { content: string; count: number } {
     let count = 0
+    const noteDir = dirname(noteRelPath)   // e.g. "GreatSoft/Azure" or "."
 
-    // Pass 1: ![[...]] Obsidian wiki-link embeds
+    // Pass 1: ![[...]] Obsidian wiki-link embeds — always rewrite (invalid standard markdown)
     const pass1 = content.replace(/!\[\[([^\]]+)\]\]/g, (_match, target: string) => {
       const trimmed = target.trim()
       const ext = extname(trimmed).toLowerCase()
@@ -151,14 +154,21 @@ class ImportService {
       return `![](${this.relativeToNote(noteRelPath, vaultRelPath)})`
     })
 
-    // Pass 2: bare ![](img.png) references without any directory component
-    // (Obsidian sometimes writes these when attachments are at vault root)
+    // Pass 2: bare ![](img.png) references without any directory component.
+    // Skip rewriting if the referenced file already exists at the current relative
+    // path — this preserves correct links that were already valid before import.
     const pass2 = pass1.replace(
       /!\[([^\]]*)\]\(([^)]+)\)/g,
       (_match, alt: string, src: string) => {
         if (src.startsWith('http') || src.startsWith('/') || src.includes('/')) return _match
         const ext = extname(src).toLowerCase()
         if (!IMAGE_EXTS.has(ext)) return _match
+
+        // If the image already exists at this path relative to the note, leave the link alone
+        if (vaultPath) {
+          const resolved = join(vaultPath, noteDir === '.' ? '' : noteDir, src)
+          if (existsSync(resolved)) return _match
+        }
 
         let vaultRelPath: string
         if (imageMap?.has(src)) {

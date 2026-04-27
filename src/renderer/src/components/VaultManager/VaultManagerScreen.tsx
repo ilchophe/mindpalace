@@ -6,6 +6,7 @@ import { useVaultStore } from '../../stores/vaultStore'
 import VaultCard from './VaultCard'
 import DeleteVaultModal from './DeleteVaultModal'
 import ImportFolderModal from './ImportFolderModal'
+import WindowControls from '../shared/WindowControls'
 
 type SortKey = 'lastOpened' | 'name' | 'noteCount' | 'created'
 
@@ -84,6 +85,12 @@ export default function VaultManagerScreen(): React.JSX.Element {
 
   return (
     <div className="fixed inset-0 z-40 flex flex-col bg-vault-bg">
+      {/* Drag region + window controls (needed because TabBar is hidden behind this overlay) */}
+      <div className="app-drag flex items-stretch h-9 flex-shrink-0 border-b border-vault-border/40">
+        <div className="flex-1" />
+        <WindowControls />
+      </div>
+
       {/* Header */}
       <div className="flex items-center justify-between px-8 py-5 border-b border-vault-border">
         <h1 className="text-xl font-bold text-vault-text">MindPalace Vaults</h1>

@@ -99,11 +99,13 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
   },
 
   loadNotes: async () => {
+    if (!get().activeConfig) return
     const notes = await window.api.notes.list()
     set({ notes })
   },
 
   loadAssets: async () => {
+    if (!get().activeConfig) return
     const assets = await window.api.notes.listAssets()
     set({ assets })
   },

@@ -1,44 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { X, ChevronDown, FileText, Minus, Square, Copy } from 'lucide-react'
+import { X, ChevronDown, FileText } from 'lucide-react'
 import { useEditorStore } from '../../stores/editorStore'
-
-const isMac = window.platform === 'darwin'
-
-function WindowControls(): React.JSX.Element {
-  const [maximized, setMaximized] = useState(false)
-
-  useEffect(() => {
-    window.windowApi.isMaximized().then(setMaximized)
-    const unsub = window.windowApi.onMaximizeChange(setMaximized)
-    return unsub
-  }, [])
-
-  return (
-    <div className="flex items-stretch flex-shrink-0 app-no-drag">
-      <button
-        title="Minimize"
-        className="h-full px-3.5 text-vault-muted hover:text-vault-text hover:bg-vault-surface/70 transition-colors flex items-center"
-        onClick={() => window.windowApi.minimize()}
-      >
-        <Minus size={13} />
-      </button>
-      <button
-        title={maximized ? 'Restore' : 'Maximize'}
-        className="h-full px-3.5 text-vault-muted hover:text-vault-text hover:bg-vault-surface/70 transition-colors flex items-center"
-        onClick={() => window.windowApi.maximize()}
-      >
-        {maximized ? <Copy size={12} className="rotate-0" /> : <Square size={12} />}
-      </button>
-      <button
-        title="Close"
-        className="h-full px-3.5 text-vault-muted hover:text-white hover:bg-red-600 transition-colors flex items-center"
-        onClick={() => window.windowApi.close()}
-      >
-        <X size={13} />
-      </button>
-    </div>
-  )
-}
+import WindowControls from '../shared/WindowControls'
 
 export default function TabBar(): React.JSX.Element {
   const { tabs, activeTabId, setActiveTab, closeTab } = useEditorStore()
@@ -164,8 +127,8 @@ export default function TabBar(): React.JSX.Element {
         </div>
       )}
 
-      {/* Window controls — right side, only on Windows / Linux */}
-      {!isMac && <WindowControls />}
+      {/* Window controls — right side, hidden on macOS by WindowControls itself */}
+      <WindowControls />
     </div>
   )
 }
