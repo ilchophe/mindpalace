@@ -66,6 +66,9 @@ class AuthService {
       }
       return null
     } catch {
+      // Decryption failed — likely due to safeStorage key change between Electron versions.
+      // Clear the stale token so the user is prompted to re-authenticate cleanly.
+      this.clearToken()
       return null
     }
   }

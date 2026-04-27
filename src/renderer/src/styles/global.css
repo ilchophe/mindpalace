@@ -1,9 +1,20 @@
 /* Import Inter — must be first before any @tailwind directives */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+@source "../**/*.{js,ts,jsx,tsx}";
+@source "../../index.html";
+
+@theme inline {
+  --font-family-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+  --color-vault-bg: var(--vault-bg);
+  --color-vault-surface: var(--vault-surface);
+  --color-vault-border: var(--vault-border);
+  --color-vault-text: var(--vault-text);
+  --color-vault-muted: var(--vault-muted);
+  --color-vault-accent: var(--vault-accent);
+}
 
 :root {
   /* Obsidian-matched neutral dark palette */
