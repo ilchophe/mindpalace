@@ -32,6 +32,15 @@ jobs:
           node-version: '20'
           cache: npm
 
+      # node-gyp uses Python to compile better-sqlite3 when no prebuilt binary
+      # exists for the target Electron version. Python 3.12+ removed distutils
+      # from the stdlib; pin 3.11 (last version that includes it) so the build
+      # works regardless of what the runner ships.
+      - name: Setup Python 3.11 (node-gyp needs distutils)
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
       - name: Install dependencies
         run: npm ci
 
