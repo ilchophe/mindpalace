@@ -147,6 +147,9 @@ export function registerGitHandlers(): void {
     const githubRepo = repoMatch?.[1] ?? null
     vaultService.updateConfig({ githubRepo })
 
+    // Tell the renderer to refresh activeConfig so SyncPanel shows the repo
+    broadcast(IPC.VAULT.REGISTRY_CHANGED)
+
     broadcast(IPC.GIT.SYNC_STATUS, {
       status: 'idle',
       pushedAt: new Date().toISOString()
