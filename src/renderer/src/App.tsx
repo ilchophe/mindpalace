@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react'
 import { useVaultStore } from './stores/vaultStore'
+import { useEditorStore } from './stores/editorStore'
 import { useSyncStore } from './stores/syncStore'
 import { useUIStore } from './stores/uiStore'
 import { loadSavedTheme, applyTheme } from './lib/themeEngine'
@@ -33,10 +34,28 @@ export default function App(): React.JSX.Element {
       handleConflictDetected(conflicts)
     )
 
+    // When a file changes on disk (e.g. rewriteReferencesInVault after a rename),
+    // reload any open non-dirty tab so the editor reflects the updated content.
+    const offChanged = window.api.vault.onFileChanged((absPath: string) => {
+      const { activeVault } = useVaultStore.getState()
+      if (!activeVault) return
+      const vaultNorm = activeVault.localPath.replace(/\\/g, '/')
+      const absNorm   = absPath.replace(/\\/g, '/')
+      if (!absNorm.startsWith(vaultNorm)) return
+      const relPath = absNorm.slice(vaultNorm.length).replace(/^\//, '')
+      const { tabs, setContent } = useEditorStore.getState()
+      const tab = tabs.find(t => t.relativePath === relPath && !t.isDirty)
+      if (!tab) return
+      window.api.notes.read(relPath)
+        .then(content => setContent(tab.id, content, false))
+        .catch(() => {/* file removed — leave tab as-is */})
+    })
+
     return () => {
       offRegistry()
       offSync()
       offConflict()
+      offChanged()
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 

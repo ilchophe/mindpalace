@@ -218,10 +218,20 @@ class ImageWidget extends WidgetType {
     img.src = this.resolvedUrl
     img.alt = this.alt
     img.className = 'cm-rendered-img'
-    // Fall back to raw text if image can't load
+    // Show a styled placeholder when the file can't be loaded (wrong path / missing file)
     img.onerror = () => {
-      wrap.textContent = `![${this.alt}](${this.src})`
+      wrap.innerHTML = ''
       wrap.className = 'cm-rendered-image-error'
+      const icon = document.createElement('span')
+      icon.textContent = '🖼'
+      icon.className = 'cm-image-error-icon'
+      const label = document.createElement('span')
+      label.className = 'cm-image-error-label'
+      const filename = this.src.split('/').pop() ?? this.src
+      label.textContent = `Image not found: ${filename}`
+      label.title = this.src
+      wrap.appendChild(icon)
+      wrap.appendChild(label)
     }
     wrap.appendChild(img)
     return wrap
@@ -538,9 +548,27 @@ export const mindpalaceTheme = EditorView.theme({
     margin: '4px 0',
   },
   '.cm-rendered-image-error': {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '6px',
+    padding: '4px 10px',
+    borderRadius: '4px',
+    border: '1px dashed var(--vault-border)',
+    background: 'rgba(255,80,80,0.06)',
+    cursor: 'default',
+  },
+  '.cm-image-error-icon': {
+    fontSize: '1em',
+    opacity: '0.6',
+  },
+  '.cm-image-error-label': {
     fontFamily: "'JetBrains Mono','Fira Code',monospace",
-    fontSize: '0.8em',
+    fontSize: '0.78em',
     color: 'var(--vault-muted)',
+    maxWidth: '400px',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
   },
 
   // Horizontal rule widget
