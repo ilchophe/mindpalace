@@ -16,6 +16,8 @@ const api = {
     pin: (vaultId: string, pinned: boolean) => ipcRenderer.invoke(IPC.VAULT.PIN, vaultId, pinned),
     updateLabels: (vaultId: string, labels: string[]) =>
       ipcRenderer.invoke(IPC.VAULT.UPDATE_LABELS, vaultId, labels),
+    rename: (vaultId: string, newName: string) =>
+      ipcRenderer.invoke(IPC.VAULT.RENAME, vaultId, newName),
     delete: (payload: VaultDeletePayload) => ipcRenderer.invoke(IPC.VAULT.DELETE, payload),
     pickFolder: () => ipcRenderer.invoke(IPC.VAULT.PICK_FOLDER),
 

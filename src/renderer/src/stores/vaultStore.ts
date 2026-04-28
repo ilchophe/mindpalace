@@ -27,6 +27,7 @@ interface VaultStore {
   loadAssets: () => Promise<void>
   pinVault: (id: string, pinned: boolean) => Promise<void>
   updateLabels: (id: string, labels: string[]) => Promise<void>
+  renameVault: (id: string, newName: string) => Promise<void>
   deleteVault: (id: string, confirmation: string, deleteRemote: boolean) => Promise<string | null>
   createVault: (name: string, parentDir: string) => Promise<void>
   openVault: (localPath: string) => Promise<void>
@@ -126,6 +127,14 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
     await window.api.vault.updateLabels(id, labels)
     set((s) => ({
       vaults: s.vaults.map((v) => (v.id === id ? { ...v, labels } : v))
+    }))
+  },
+
+  renameVault: async (id, newName) => {
+    await window.api.vault.rename(id, newName)
+    set((s) => ({
+      vaults: s.vaults.map((v) => (v.id === id ? { ...v, name: newName } : v)),
+      activeVault: s.activeVault?.id === id ? { ...s.activeVault, name: newName } : s.activeVault
     }))
   },
 

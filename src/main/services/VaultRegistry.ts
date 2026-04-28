@@ -10,6 +10,10 @@ class VaultRegistryService {
     return this.get().vaults.find((v) => v.id === id)
   }
 
+  getByPath(localPath: string): VaultSummary | undefined {
+    return this.get().vaults.find((v) => v.localPath === localPath)
+  }
+
   getActive(): VaultSummary | null {
     const { vaults, activeVaultId } = this.get()
     return vaults.find((v) => v.id === activeVaultId) ?? null

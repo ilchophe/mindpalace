@@ -72,6 +72,11 @@ export function registerVaultHandlers(): void {
     broadcast(IPC.VAULT.REGISTRY_CHANGED)
   })
 
+  ipcMain.handle(IPC.VAULT.RENAME, (_e, vaultId: string, newName: string) => {
+    vaultService.renameVault(vaultId, newName)
+    broadcast(IPC.VAULT.REGISTRY_CHANGED)
+  })
+
   // ---------------------------------------------------------------------------
   // Deletion (two server-side validations: typed confirmation + path existence)
   // ---------------------------------------------------------------------------

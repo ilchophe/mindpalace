@@ -259,6 +259,7 @@ export const IPC = {
     GET_ACTIVE:    'vault:getActive',  // → VaultSummary | null
     PIN:           'vault:pin',        // (vaultId, pinned: boolean)
     UPDATE_LABELS: 'vault:updateLabels', // (vaultId, labels: string[])
+    RENAME:        'vault:rename',     // (vaultId, newName: string)
     DELETE:        'vault:delete',     // (VaultDeletePayload) → { success } | { error }
     PICK_FOLDER:   'vault:pickFolder', // () → string | null
 

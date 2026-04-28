@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react'
 import { MoreHorizontal, Pin, CheckCircle2, ArrowDown, ArrowUp, AlertTriangle, XCircle, Circle, type LucideIcon } from 'lucide-react'
 import type { VaultSummary } from '@shared'
 import { useVaultStore } from '../../stores/vaultStore'
+import VaultSettingsModal from './VaultSettingsModal'
 
 interface Props {
   vault: VaultSummary
@@ -33,6 +34,7 @@ function timeAgo(iso: string | null): string {
 export default function VaultCard({ vault, isActive, onDeleteRequest }: Props): React.JSX.Element {
   const { switchVault, pinVault } = useVaultStore()
   const [menuOpen, setMenuOpen] = useState(false)
+  const [showSettings, setShowSettings] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -88,6 +90,12 @@ export default function VaultCard({ vault, isActive, onDeleteRequest }: Props): 
           >
             {vault.isPinned ? 'Unpin' : 'Pin to top'}
           </button>
+          <button
+            className="menu-item"
+            onClick={() => { setMenuOpen(false); setShowSettings(true) }}
+          >
+            Settings…
+          </button>
           <div className="border-t border-vault-border my-1" />
           <button
             className="menu-item text-red-400 hover:bg-red-900/20"
@@ -127,6 +135,15 @@ export default function VaultCard({ vault, isActive, onDeleteRequest }: Props): 
             </span>
           ))}
         </div>
+      )}
+
+      {/* Settings modal */}
+      {showSettings && (
+        <VaultSettingsModal
+          vault={vault}
+          onClose={() => setShowSettings(false)}
+          onDeleteRequest={() => onDeleteRequest(vault)}
+        />
       )}
     </div>
   )

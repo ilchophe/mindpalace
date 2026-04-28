@@ -125,6 +125,43 @@ class GitService {
     })
   }
 
+  /**
+   * Fetch the remote and hard-reset local HEAD + working tree to the remote branch.
+   * Used when linking to an existing repo so we adopt remote history instead of
+   * trying to push unrelated local history (which would give PushRejectedError).
+   */
+  async fetchAndReset(dir: string, token: string, branch = 'main'): Promise<void> {
+    // Fetch all objects and remote refs
+    await git.fetch({
+      fs: nodefs,
+      http,
+      dir,
+      remote: 'origin',
+      ref: branch,
+      singleBranch: true,
+      depth: 50,
+      onAuth: () => ({ username: token, password: '' })
+    })
+
+    // Point local branch to exactly the remote commit
+    const remoteRef = `refs/remotes/origin/${branch}`
+    const oid = await git.resolveRef({ fs: nodefs, dir, ref: remoteRef })
+    await git.writeRef({ fs: nodefs, dir, ref: `refs/heads/${branch}`, value: oid, force: true })
+
+    // Ensure HEAD points to the local branch
+    await git.writeRef({
+      fs: nodefs,
+      dir,
+      ref: 'HEAD',
+      value: `ref: refs/heads/${branch}`,
+      symbolic: true,
+      force: true
+    })
+
+    // Checkout all files, overwriting anything local
+    await git.checkout({ fs: nodefs, dir, ref: branch, force: true })
+  }
+
   async pull(dir: string, token: string, author: GitAuthor, branch = 'main'): Promise<{ conflicts: string[] }> {
     try {
       await git.pull({

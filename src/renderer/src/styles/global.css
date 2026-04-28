@@ -16,6 +16,23 @@
   --color-vault-accent: var(--vault-accent);
 }
 
+@layer utilities {
+  /* Restore Tailwind v3 paired line-heights.
+     In v4, text-* utilities only set font-size; line-height is inherited from
+     <html line-height: 1.5>, making every element 1–3 px taller than in v3.
+     Explicitly pairing them here matches v3 output exactly.
+     NOTE: @theme { --text-xs: 0.75rem / 1rem } does NOT work — it generates the
+     invalid CSS "font-size: 0.75rem / 1rem" which browsers silently ignore,
+     causing text to fall back to the inherited 16 px and breaking all proportions. */
+  .text-xs   { font-size: 0.75rem;   line-height: 1rem; }
+  .text-sm   { font-size: 0.875rem;  line-height: 1.25rem; }
+  .text-base { font-size: 1rem;      line-height: 1.5rem; }
+  .text-lg   { font-size: 1.125rem;  line-height: 1.75rem; }
+  .text-xl   { font-size: 1.25rem;   line-height: 1.75rem; }
+  .text-2xl  { font-size: 1.5rem;    line-height: 2rem; }
+  .text-3xl  { font-size: 1.875rem;  line-height: 2.25rem; }
+}
+
 :root {
   /* Obsidian-matched neutral dark palette */
   --vault-bg: #1a1a1a;
@@ -23,7 +40,7 @@
   --vault-border: #333333;
   --vault-text: #dcddde;
   --vault-muted: #888888;
-  --vault-accent: #7c6af7;
+  --vault-accent: #4f81f5;
 }
 
 .light {
@@ -32,27 +49,35 @@
   --vault-border: #d4d4d4;
   --vault-text: #1a1a1a;
   --vault-muted: #6b6b6b;
-  --vault-accent: #7c3aed;
+  --vault-accent: #1d6fe8;
 }
 
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
+/* ── Base resets — must be in @layer base so Tailwind utilities can override ── */
+/* In Tailwind v4, ALL utilities live in @layer utilities. Unlayered CSS         */
+/* (styles outside any @layer) ALWAYS beats layered CSS regardless of           */
+/* specificity. Putting resets in @layer base keeps them below utilities.        */
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
 
-html,
-body,
-#root {
-  height: 100%;
-  width: 100%;
-  overflow: hidden;
-}
+  html,
+  body,
+  #root {
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+  }
 
-body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  background: var(--vault-bg);
-  color: var(--vault-text);
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--vault-bg);
+    color: var(--vault-text);
+  }
 }
 
 /* ── Obsidian-style slim scrollbars (applied globally) ─────────────────── */

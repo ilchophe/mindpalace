@@ -79,9 +79,15 @@ class VaultService {
       ? (authService.isAuthenticated() ? 'idle' : 'disconnected')
       : 'disconnected'
 
+    // Dedup: check both by ID and by path.
+    // If a path-match exists with a *different* ID (config.json was regenerated),
+    // remove the stale entry so we don't accumulate duplicates.
+    const byPath = vaultRegistry.getByPath(localPath)
+    if (byPath && byPath.id !== config.id) {
+      vaultRegistry.remove(byPath.id)
+    }
     if (!vaultRegistry.getById(config.id)) {
-      const summary = this.buildSummary(config)
-      vaultRegistry.add(summary)
+      vaultRegistry.add(this.buildSummary(config))
     }
 
     vaultRegistry.setActive(config.id)
@@ -145,6 +151,34 @@ class VaultService {
       githubRepo: this.activeConfig.githubRepo
     })
     return this.activeConfig
+  }
+
+  /** Rename any vault by ID — works for both the active vault and inactive ones. */
+  renameVault(vaultId: string, newName: string): void {
+    const summary = vaultRegistry.getById(vaultId)
+    if (!summary) throw new Error(`Vault not found: ${vaultId}`)
+
+    // Update registry
+    vaultRegistry.update(vaultId, { name: newName })
+
+    // If this is the active vault, update in-memory config + write file
+    if (this.activeConfig?.id === vaultId) {
+      this.activeConfig = { ...this.activeConfig, name: newName }
+      this.writeConfig(this.activeConfig.localPath, this.activeConfig)
+      return
+    }
+
+    // For inactive vaults, patch the config file on disk if it exists
+    const configPath = join(summary.localPath, CONFIG_DIR, CONFIG_FILE)
+    if (existsSync(configPath)) {
+      try {
+        const config = JSON.parse(readFileSync(configPath, 'utf8')) as VaultConfig
+        config.name = newName
+        writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf8')
+      } catch {
+        // Non-fatal — registry is already updated
+      }
+    }
   }
 
   /**

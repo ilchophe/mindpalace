@@ -126,21 +126,31 @@ export function registerGitHandlers(): void {
     // Set remote
     await gitService.addRemote(config.localPath, cloneUrl)
 
-    // Stage + commit everything
-    await gitService.addAll(config.localPath)
-    if (await gitService.hasChanges(config.localPath)) {
-      await gitService.commit(config.localPath, 'initial commit [MindPalace]', author)
+    if (payload.action === 'link') {
+      // ── Link to existing repo ──────────────────────────────────────────
+      // The remote already has history. Fetch its content and hard-reset
+      // the local working tree to match. This avoids PushRejectedError that
+      // occurs when local and remote have unrelated histories.
+      try {
+        await gitService.fetchAndReset(config.localPath, token, config.githubBranch)
+      } catch {
+        // Remote is empty (just created by GitHub with no commits) — fall
+        // back to staging + pushing the local files instead.
+        await gitService.addAll(config.localPath)
+        if (await gitService.hasChanges(config.localPath)) {
+          await gitService.commit(config.localPath, 'initial commit [MindPalace]', author)
+        }
+        await gitService.push(config.localPath, token, 'origin', config.githubBranch)
+      }
+    } else {
+      // ── Create new repo ────────────────────────────────────────────────
+      // Remote is brand new and empty. Stage everything and do initial push.
+      await gitService.addAll(config.localPath)
+      if (await gitService.hasChanges(config.localPath)) {
+        await gitService.commit(config.localPath, 'initial commit [MindPalace]', author)
+      }
+      await gitService.push(config.localPath, token, 'origin', config.githubBranch)
     }
-
-    // Pull first in case repo has content (auto_init etc.)
-    try {
-      await gitService.pull(config.localPath, token, author, config.githubBranch)
-    } catch {
-      // New empty repo — pull will fail with no-commits; that's fine
-    }
-
-    // Push
-    await gitService.push(config.localPath, token, 'origin', config.githubBranch)
 
     // Extract owner/repo from clone URL and persist to VaultConfig
     const repoMatch = cloneUrl.match(/github\.com[:/](.+?)(?:\.git)?$/)

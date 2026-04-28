@@ -41,6 +41,7 @@ declare global {
         updateConfig: (changes: Partial<VaultConfig>) => Promise<VaultConfig>
         pin: (vaultId: string, pinned: boolean) => Promise<void>
         updateLabels: (vaultId: string, labels: string[]) => Promise<void>
+        rename: (vaultId: string, newName: string) => Promise<void>
         delete: (payload: VaultDeletePayload) => Promise<{ success: true } | { error: string }>
         pickFolder: () => Promise<string | null>
         onFileChanged: (cb: (path: string) => void) => () => void
