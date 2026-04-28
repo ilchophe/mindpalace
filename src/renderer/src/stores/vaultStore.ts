@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { VaultSummary, VaultConfig, NoteMetadata } from '@shared'
+import type { VaultSummary, VaultConfig, NoteMetadata, AutoOpenResult } from '@shared'
 import { useEditorStore } from './editorStore'
 
 interface VaultStore {
@@ -16,12 +16,16 @@ interface VaultStore {
   // UI
   isManagerOpen: boolean
   isLoading: boolean
+  /** Set when auto-open on startup fails; cleared when user dismisses the modal. */
+  startupError: Extract<AutoOpenResult, { success: false; reason: 'path_missing' | 'open_failed' }> | null
 
   // Actions
   loadRegistry: () => Promise<void>
+  autoOpen: () => Promise<void>
   switchVault: (id: string) => Promise<void>
   openManager: () => void
   closeManager: () => void
+  clearStartupError: () => void
   setSelectedNote: (note: NoteMetadata | null) => void
   loadNotes: () => Promise<void>
   loadAssets: () => Promise<void>
@@ -42,6 +46,47 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
   selectedNote: null,
   isManagerOpen: false,
   isLoading: false,
+  startupError: null,
+
+  autoOpen: async () => {
+    set({ isLoading: true })
+    try {
+      const result = await window.api.vault.autoOpen()
+
+      if (result.success) {
+        // Vault opened — refresh registry state + load notes
+        const [vaults, activeVault] = await Promise.all([
+          window.api.vault.list(),
+          window.api.vault.getActive()
+        ])
+        set({
+          activeConfig: result.config,
+          activeVault,
+          vaults,
+          isManagerOpen: false,
+          startupError: null
+        })
+        await get().loadNotes()
+        await get().loadAssets()
+        return
+      }
+
+      // Refresh registry so vault list is up to date regardless
+      const vaults = await window.api.vault.list()
+      set({ vaults })
+
+      if (result.reason === 'no_vault') {
+        // Clean slate — open manager normally, no error
+        set({ isManagerOpen: true })
+        return
+      }
+
+      // path_missing or open_failed — store error for the recovery modal
+      set({ startupError: result, isManagerOpen: false })
+    } finally {
+      set({ isLoading: false })
+    }
+  },
 
   loadRegistry: async () => {
     const [vaults, activeVault, activeConfig] = await Promise.all([
@@ -115,6 +160,7 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
 
   openManager: () => set({ isManagerOpen: true }),
   closeManager: () => set({ isManagerOpen: false }),
+  clearStartupError: () => set({ startupError: null }),
 
   pinVault: async (id, pinned) => {
     await window.api.vault.pin(id, pinned)

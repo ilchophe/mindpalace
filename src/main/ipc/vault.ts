@@ -1,6 +1,7 @@
 import { ipcMain, dialog, BrowserWindow } from 'electron'
+import { existsSync } from 'fs'
 import { IPC } from '../../types'
-import type { VaultDeletePayload, CloneVaultPayload } from '../../types'
+import type { VaultDeletePayload, CloneVaultPayload, AutoOpenResult } from '../../types'
 import { vaultService } from '../services/VaultService'
 import { vaultRegistry } from '../services/VaultRegistry'
 import { authService } from '../services/AuthService'
@@ -13,6 +14,50 @@ function broadcast(channel: string, ...args: unknown[]): void {
 }
 
 export function registerVaultHandlers(): void {
+  // ---------------------------------------------------------------------------
+  // Registry queries
+  // ---------------------------------------------------------------------------
+
+  // ---------------------------------------------------------------------------
+  // Auto-open last vault on startup
+  // ---------------------------------------------------------------------------
+
+  ipcMain.handle(IPC.VAULT.AUTO_OPEN, async (): Promise<AutoOpenResult> => {
+    const lastVault = vaultRegistry.getActive()
+
+    // No previously active vault — fresh install or user closed all vaults
+    if (!lastVault) {
+      return { success: false, reason: 'no_vault' }
+    }
+
+    // Vault folder has been moved, deleted, or is on an unmounted drive
+    if (!existsSync(lastVault.localPath)) {
+      // Clear the stale active pointer so next getActive() returns null
+      vaultRegistry.setActive(null)
+      return {
+        success: false,
+        reason: 'path_missing',
+        vaultName: lastVault.name,
+        vaultPath: lastVault.localPath
+      }
+    }
+
+    // Try to fully open the vault (starts watcher, index, sync)
+    try {
+      const config = await vaultService.open(lastVault.localPath)
+      broadcast(IPC.VAULT.REGISTRY_CHANGED)
+      return { success: true, config }
+    } catch (err) {
+      return {
+        success: false,
+        reason: 'open_failed',
+        vaultName: lastVault.name,
+        vaultPath: lastVault.localPath,
+        message: (err as Error).message ?? 'Unknown error'
+      }
+    }
+  })
+
   // ---------------------------------------------------------------------------
   // Registry queries
   // ---------------------------------------------------------------------------

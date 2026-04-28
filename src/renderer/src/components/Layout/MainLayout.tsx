@@ -13,13 +13,14 @@ import QuickSwitcher from '../Search/QuickSwitcher'
 import GraphView from '../Graph/GraphView'
 import CommandPalette from '../CommandPalette/CommandPalette'
 import SettingsPanel from '../Settings/SettingsPanel'
+import StartupRecoveryModal from '../VaultManager/StartupRecoveryModal'
 
 const SIDEBAR_MIN = 160
 const SIDEBAR_MAX = 520
 const SIDEBAR_DEFAULT = 224
 
 export default function MainLayout(): React.JSX.Element {
-  const { isManagerOpen, openManager, activeVault } = useVaultStore()
+  const { isManagerOpen, openManager, activeVault, isLoading, startupError } = useVaultStore()
   const { isConnectModalOpen, isConflictModalOpen } = useSyncStore()
   const {
     isGraphOpen, closeGraph, openGraph,
@@ -134,6 +135,17 @@ export default function MainLayout(): React.JSX.Element {
       {isGraphOpen && <GraphView onClose={closeGraph} />}
       {isCommandPaletteOpen && <CommandPalette onClose={closeCommandPalette} />}
       {isSettingsOpen && <SettingsPanel />}
+
+      {/* Startup: auto-open in progress */}
+      {isLoading && !activeVault && !startupError && (
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-vault-bg gap-4">
+          <div className="w-8 h-8 rounded-full border-2 border-vault-accent border-t-transparent animate-spin" />
+          <p className="text-sm text-vault-muted">Opening vault…</p>
+        </div>
+      )}
+
+      {/* Startup: recovery modal (path missing or open error) */}
+      {startupError && <StartupRecoveryModal />}
     </div>
   )
 }

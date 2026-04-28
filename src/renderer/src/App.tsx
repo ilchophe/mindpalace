@@ -8,7 +8,7 @@ import MainLayout from './components/Layout/MainLayout'
 import type { SyncStatusPayload } from '@shared'
 
 export default function App(): React.JSX.Element {
-  const { loadRegistry, openManager } = useVaultStore()
+  const { autoOpen, loadRegistry } = useVaultStore()
   const { loadAuthStatus, handleSyncStatus, handleConflictDetected } = useSyncStore()
   const { setTheme } = useUIStore()
 
@@ -19,11 +19,8 @@ export default function App(): React.JSX.Element {
     setTheme(saved)
 
     Promise.all([
-      loadRegistry().then(() => {
-        const { activeVault } = useVaultStore.getState()
-        if (!activeVault) openManager()
-      }),
-      loadAuthStatus(),
+      autoOpen(),      // tries to reopen last vault; handles manager / error state internally
+      loadAuthStatus()
     ])
 
     const offRegistry = window.api.vault.onRegistryChanged(() => loadRegistry())

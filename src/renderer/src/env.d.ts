@@ -15,7 +15,8 @@ import type {
   CloneVaultPayload,
   SearchResult,
   ImportProgress,
-  ImportResult
+  ImportResult,
+  AutoOpenResult
 } from '../../types'
 
 declare global {
@@ -48,6 +49,7 @@ declare global {
         onFileCreated: (cb: (path: string) => void) => () => void
         onFileDeleted: (cb: (path: string) => void) => () => void
         onRegistryChanged: (cb: () => void) => () => void
+        autoOpen: () => Promise<AutoOpenResult>
         importFolder: (sourcePath: string) => Promise<ImportResult>
         onImportProgress: (cb: (p: ImportProgress) => void) => () => void
       }

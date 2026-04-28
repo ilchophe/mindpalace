@@ -53,6 +53,17 @@ export interface VaultRegistry {
   activeVaultId: string | null
 }
 
+/**
+ * Returned by vault:autoOpen.
+ * success=true  → config is set, vault is fully open.
+ * success=false → reason explains why; vaultName/vaultPath are set for UI copy.
+ */
+export type AutoOpenResult =
+  | { success: true;  config: VaultConfig }
+  | { success: false; reason: 'no_vault' }
+  | { success: false; reason: 'path_missing'; vaultName: string; vaultPath: string }
+  | { success: false; reason: 'open_failed';  vaultName: string; vaultPath: string; message: string }
+
 /** Payload for the vault:delete IPC channel. */
 export interface VaultDeletePayload {
   vaultId: string
@@ -262,6 +273,9 @@ export const IPC = {
     RENAME:        'vault:rename',     // (vaultId, newName: string)
     DELETE:        'vault:delete',     // (VaultDeletePayload) → { success } | { error }
     PICK_FOLDER:   'vault:pickFolder', // () → string | null
+
+    // Auto-open last vault on startup
+    AUTO_OPEN: 'vault:autoOpen',
 
     // Push events (main → renderer)
     FILE_CHANGED:      'vault:file-changed',

@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { IPC } from '../types'
-import type { VaultConfig, VaultDeletePayload, ConnectRemotePayload, CloneVaultPayload } from '../types'
+import type { VaultConfig, VaultDeletePayload, ConnectRemotePayload, CloneVaultPayload, AutoOpenResult } from '../types'
 
 const api = {
   vault: {
@@ -41,6 +41,8 @@ const api = {
       ipcRenderer.on(IPC.VAULT.REGISTRY_CHANGED, handler)
       return () => ipcRenderer.off(IPC.VAULT.REGISTRY_CHANGED, handler)
     },
+
+    autoOpen: (): Promise<AutoOpenResult> => ipcRenderer.invoke(IPC.VAULT.AUTO_OPEN),
 
     importFolder: (sourcePath: string) => ipcRenderer.invoke(IPC.VAULT.IMPORT_FOLDER, sourcePath),
     onImportProgress: (cb: (p: unknown) => void) => {
