@@ -33,53 +33,53 @@ export default function SyncPanel(): React.JSX.Element | null {
   const isSyncing = syncStatus.status === 'pulling' || syncStatus.status === 'pushing'
 
   return (
-    <div className="border-t border-vault-border px-3 py-2 flex-shrink-0">
+    <div className="border-t border-vault-border px-3 py-2.5 flex-shrink-0">
       {isConnected ? (
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-2">
           {/* Repo name */}
-          <p className="text-[10px] text-vault-muted truncate">{activeVault?.githubRepo ?? activeConfig.githubRepo}</p>
+          <p className="text-xs text-vault-muted truncate">{activeVault?.githubRepo ?? activeConfig.githubRepo}</p>
 
           {/* Status row */}
           <div className="flex items-center gap-2">
-            <span className={`w-2 h-2 rounded-full flex-shrink-0 ${style.dot}`} />
-            <span className="text-xs text-vault-muted flex-1">{style.label}</span>
+            <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${style.dot}`} />
+            <span className="text-sm text-vault-muted flex-1">{style.label}</span>
             {syncStatus.status === 'idle' && (
-              <span className="text-[10px] text-vault-muted">{timeAgo(lastSyncedAt)}</span>
+              <span className="text-xs text-vault-muted">{timeAgo(lastSyncedAt)}</span>
             )}
           </div>
 
           {/* Auto-sync interval label */}
           {isConnected && (activeConfig.syncIntervalMinutes ?? 0) > 0 && (
-            <p className="text-[10px] text-vault-muted">
+            <p className="text-xs text-vault-muted">
               auto every {activeConfig.syncIntervalMinutes}m
             </p>
           )}
 
           {syncStatus.message && (
-            <p className="text-[10px] text-red-400 truncate">{syncStatus.message}</p>
+            <p className="text-xs text-red-400 truncate">{syncStatus.message}</p>
           )}
 
           {/* Sync button */}
           {isAuthenticated && (
             <button
-              className="btn-ghost text-xs py-1 w-full text-center flex items-center justify-center gap-1.5"
+              className="btn-ghost text-sm py-1.5 w-full text-center flex items-center justify-center gap-1.5"
               onClick={syncNow}
               disabled={isSyncing}
             >
-              <RefreshCw size={11} className={isSyncing ? 'animate-spin' : ''} />
+              <RefreshCw size={13} className={isSyncing ? 'animate-spin' : ''} />
               {isSyncing ? 'Syncing…' : 'Sync now'}
             </button>
           )}
 
           {!isAuthenticated && (
-            <button className="btn-secondary text-xs py-1 w-full" onClick={openConnectModal}>
+            <button className="btn-secondary text-sm py-1.5 w-full" onClick={openConnectModal}>
               Reconnect GitHub
             </button>
           )}
         </div>
       ) : (
         <button
-          className="btn-secondary text-xs py-1 w-full"
+          className="btn-secondary text-sm py-1.5 w-full"
           onClick={openConnectModal}
         >
           Connect to GitHub

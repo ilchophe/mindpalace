@@ -1,10 +1,30 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react'
-// Note: useRef is still used for dragSrcRef, newNameRef, createTarget tracking
-import { FilePlus, FolderPlus, ChevronRight, FileText, Folder, Image, File } from 'lucide-react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  FilePlus, FolderPlus, ChevronRight, FileText, Folder, Image, File,
+  ArrowUpAZ, ArrowDownAZ, Clock, Crosshair, ChevronsDownUp, ChevronsUpDown,
+} from 'lucide-react'
 import type { NoteMetadata } from '@shared'
 import { useVaultStore } from '../../stores/vaultStore'
 import { useEditorStore } from '../../stores/editorStore'
 import ContextMenu, { type ContextMenuItem } from './ContextMenu'
+
+// ── Sort ─────────────────────────────────────────────────────────────────────
+
+type SortMode = 'az' | 'za' | 'modified'
+
+const SORT_OPTIONS: { mode: SortMode; label: string; Icon: React.ElementType }[] = [
+  { mode: 'az',       label: 'Name (A → Z)',   Icon: ArrowUpAZ   },
+  { mode: 'za',       label: 'Name (Z → A)',   Icon: ArrowDownAZ },
+  { mode: 'modified', label: 'Last modified',  Icon: Clock       },
+]
+
+function sortIcon(mode: SortMode): React.ElementType {
+  if (mode === 'za') return ArrowDownAZ
+  if (mode === 'modified') return Clock
+  return ArrowUpAZ
+}
+
+// ── Tree model ────────────────────────────────────────────────────────────────
 
 interface TreeNode {
   name: string
@@ -12,12 +32,17 @@ interface TreeNode {
   isFolder: boolean
   children: TreeNode[]
   note?: NoteMetadata
-  assetExt?: string   // set for non-md asset files (images, PDFs…)
+  assetExt?: string
 }
 
 const IMAGE_EXTS_SET = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.bmp'])
 
-function buildTree(notes: NoteMetadata[], emptyFolders: string[], assets: string[]): TreeNode[] {
+function buildTree(
+  notes: NoteMetadata[],
+  emptyFolders: string[],
+  assets: string[],
+  sortMode: SortMode,
+): TreeNode[] {
   const root: TreeNode = { name: '', path: '', isFolder: true, children: [] }
 
   function ensurePath(parts: string[]): TreeNode {
@@ -64,8 +89,15 @@ function buildTree(notes: NoteMetadata[], emptyFolders: string[], assets: string
   function sortNodes(nodes: TreeNode[]): TreeNode[] {
     return nodes
       .sort((a, b) => {
+        // Folders always first
         if (a.isFolder !== b.isFolder) return a.isFolder ? -1 : 1
-        // Within same type: notes before assets, then alphabetical
+        if (sortMode === 'modified' && !a.isFolder && !b.isFolder) {
+          const aTime = a.note?.modifiedAt ?? ''
+          const bTime = b.note?.modifiedAt ?? ''
+          if (aTime !== bTime) return aTime > bTime ? -1 : 1
+        }
+        if (sortMode === 'za') return b.name.localeCompare(a.name)
+        // az + fallback for modified (notes before assets, then alphabetical)
         if (!a.isFolder && !b.isFolder) {
           const aIsAsset = !!a.assetExt
           const bIsAsset = !!b.assetExt
@@ -79,6 +111,8 @@ function buildTree(notes: NoteMetadata[], emptyFolders: string[], assets: string
   return sortNodes(root.children)
 }
 
+// ── Drag handlers ─────────────────────────────────────────────────────────────
+
 interface DragHandlers {
   onDragStart: (e: React.DragEvent, path: string) => void
   onDragOver: (e: React.DragEvent, path: string) => void
@@ -87,20 +121,9 @@ interface DragHandlers {
   dragOverPath: string | null
 }
 
-interface TreeItemProps {
-  node: TreeNode
-  depth: number
-  selectedPath: string | null
-  onSelect: (note: NoteMetadata) => void
-  onOpenAsset: (relPath: string) => void
-  drag: DragHandlers
-  renamingPath: string | null
-  onRenameSubmit: (oldPath: string, newName: string) => void
-  onRenameCancel: () => void
-  onContextMenu: (e: React.MouseEvent, node: TreeNode) => void
-}
+// ── Shared helpers ────────────────────────────────────────────────────────────
 
-const INDENT_PX = 20
+const INDENT_PX = 22
 
 function IndentGuides({ depth }: { depth: number }): React.JSX.Element | null {
   if (depth === 0) return null
@@ -110,12 +133,7 @@ function IndentGuides({ depth }: { depth: number }): React.JSX.Element | null {
         <span
           key={i}
           className="absolute inset-y-0 pointer-events-none"
-          style={{
-            left: `${i * INDENT_PX + 10}px`,
-            width: '1px',
-            background: '#555555',
-            opacity: 1,
-          }}
+          style={{ left: `${i * INDENT_PX + 10}px`, width: '1px', background: '#555555' }}
         />
       ))}
     </>
@@ -147,15 +165,9 @@ function RenameInput({
 }): React.JSX.Element {
   const [value, setValue] = useState(initialValue)
   const inputRef = useRef<HTMLInputElement>(null)
-  // Prevents double-submit when Enter fires commit() then blur also fires
   const submittedRef = useRef(false)
-  // Only commit on blur if the user actually typed something
   const dirtyRef = useRef(false)
 
-  // autoFocus is set as a prop, but in Chromium the focus may not land when
-  // the element is mounted immediately after a context-menu click (the browser
-  // is still processing that click's event chain).  A 0-ms timeout fires after
-  // the current task finishes, guaranteeing we win the focus race.
   useEffect(() => {
     const t = setTimeout(() => {
       inputRef.current?.focus()
@@ -180,14 +192,120 @@ function RenameInput({
         if (e.key === 'Enter') { e.preventDefault(); commit() }
         if (e.key === 'Escape') { e.preventDefault(); onCancel() }
       }}
-      // Only commit on blur when the user changed the value; otherwise cancel.
-      // This prevents an immediate blur (before the timeout focus fires)
-      // from submitting the unchanged name, which would look like nothing happened.
       onBlur={() => dirtyRef.current ? commit() : onCancel()}
       className="flex-1 rounded border border-vault-accent bg-vault-bg px-1.5 py-0 text-xs text-vault-text outline-none min-w-0"
       onClick={(e) => e.stopPropagation()}
     />
   )
+}
+
+// ── Toolbar button ────────────────────────────────────────────────────────────
+
+function ToolbarBtn({
+  Icon,
+  title,
+  onClick,
+  active = false,
+  disabled = false,
+}: {
+  Icon: React.ElementType
+  title: string
+  onClick: () => void
+  active?: boolean
+  disabled?: boolean
+}): React.JSX.Element {
+  return (
+    <button
+      title={title}
+      onClick={onClick}
+      disabled={disabled}
+      className={[
+        'flex items-center justify-center w-7 h-7 rounded transition-colors',
+        disabled
+          ? 'text-vault-muted/30 cursor-default'
+          : active
+            ? 'text-vault-accent bg-vault-accent/15 hover:bg-vault-accent/25'
+            : 'text-vault-muted hover:text-vault-text hover:bg-vault-border/50',
+      ].join(' ')}
+    >
+      <Icon size={15} />
+    </button>
+  )
+}
+
+// ── Sort dropdown ─────────────────────────────────────────────────────────────
+
+function SortDropdown({
+  current,
+  anchorRef,
+  onSelect,
+  onClose,
+}: {
+  current: SortMode
+  anchorRef: React.RefObject<HTMLDivElement | null>
+  onSelect: (m: SortMode) => void
+  onClose: () => void
+}): React.JSX.Element {
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function onPointerDown(e: PointerEvent): void {
+      if (
+        menuRef.current && !menuRef.current.contains(e.target as Node) &&
+        anchorRef.current && !anchorRef.current.contains(e.target as Node)
+      ) {
+        onClose()
+      }
+    }
+    document.addEventListener('pointerdown', onPointerDown)
+    return () => document.removeEventListener('pointerdown', onPointerDown)
+  }, [anchorRef, onClose])
+
+  return (
+    <div
+      ref={menuRef}
+      className="absolute left-0 top-full mt-1 z-50 min-w-[170px] rounded-lg border border-vault-border bg-vault-surface shadow-xl py-1"
+    >
+      {SORT_OPTIONS.map(({ mode, label, Icon }) => (
+        <button
+          key={mode}
+          onClick={() => { onSelect(mode); onClose() }}
+          className={[
+            'flex items-center gap-2 w-full px-3 py-2 text-sm text-left transition-colors',
+            mode === current
+              ? 'text-vault-accent bg-vault-accent/10'
+              : 'text-vault-text hover:bg-vault-border/40',
+          ].join(' ')}
+        >
+          <Icon size={14} className="flex-shrink-0" />
+          {label}
+          {mode === current && <span className="ml-auto text-vault-accent">✓</span>}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+// ── TreeItem ──────────────────────────────────────────────────────────────────
+
+interface TreeItemProps {
+  node: TreeNode
+  depth: number
+  selectedPath: string | null
+  onSelect: (note: NoteMetadata) => void
+  onOpenAsset: (relPath: string) => void
+  drag: DragHandlers
+  renamingPath: string | null
+  onRenameSubmit: (oldPath: string, newName: string) => void
+  onRenameCancel: () => void
+  onContextMenu: (e: React.MouseEvent, node: TreeNode) => void
+  // Expand / collapse control (monotonically increasing version counters)
+  expandKey: number
+  collapseKey: number
+  // Reveal active file
+  revealPath: string | null
+  revealAncestors: ReadonlySet<string>
+  onRevealed: () => void
 }
 
 function TreeItem({
@@ -201,23 +319,51 @@ function TreeItem({
   onRenameSubmit,
   onRenameCancel,
   onContextMenu,
+  expandKey,
+  collapseKey,
+  revealPath,
+  revealAncestors,
+  onRevealed,
 }: TreeItemProps): React.JSX.Element {
   const [open, setOpen] = useState(true)
   const isSelected = !node.isFolder && selectedPath === node.path
   const isDragOver = drag.dragOverPath === node.path
   const indent = depth * INDENT_PX
   const isRenaming = renamingPath === node.path
+  const buttonRef = useRef<HTMLButtonElement>(null)
+
+  // React to global collapse/expand commands
+  useEffect(() => { if (collapseKey > 0) setOpen(false) }, [collapseKey])
+  useEffect(() => { if (expandKey > 0) setOpen(true) }, [expandKey])
+
+  // Open ancestor folders when revealing
+  useEffect(() => {
+    if (node.isFolder && revealAncestors.has(node.path)) setOpen(true)
+  }, [revealAncestors, node.isFolder, node.path])
+
+  // Scroll to the revealed file
+  useEffect(() => {
+    if (!node.isFolder && revealPath === node.path && buttonRef.current) {
+      buttonRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+      onRevealed()
+    }
+  }, [revealPath, node.isFolder, node.path, onRevealed])
 
   const baseClass =
-    'relative flex items-center gap-1.5 w-full py-[3px] pr-2 text-left text-sm rounded transition-colors cursor-default'
+    'relative flex items-center gap-1.5 w-full py-1 pr-2 text-left text-sm rounded transition-colors cursor-default'
   const dragOverClass = isDragOver ? 'bg-vault-accent/20 ring-1 ring-vault-accent/50' : ''
+
+  const childProps = {
+    selectedPath, onSelect, onOpenAsset, drag,
+    renamingPath, onRenameSubmit, onRenameCancel, onContextMenu,
+    expandKey, collapseKey, revealPath, revealAncestors, onRevealed,
+  }
 
   // ── Folder ────────────────────────────────────────────────────────────────
   if (node.isFolder) {
     return (
       <div onDragLeave={drag.onDragLeave} onDrop={(e) => drag.onDrop(e, node)}>
         {isRenaming ? (
-          // Render a plain div (not a button) so autoFocus works on the input
           <div
             style={{ paddingLeft: `${indent + 4}px` }}
             className={[baseClass, 'text-vault-muted bg-white/[0.06]'].join(' ')}
@@ -250,19 +396,7 @@ function TreeItem({
         )}
         {open &&
           node.children.map((child) => (
-            <TreeItem
-              key={child.path}
-              node={child}
-              depth={depth + 1}
-              selectedPath={selectedPath}
-              onSelect={onSelect}
-              onOpenAsset={onOpenAsset}
-              drag={drag}
-              renamingPath={renamingPath}
-              onRenameSubmit={onRenameSubmit}
-              onRenameCancel={onRenameCancel}
-              onContextMenu={onContextMenu}
-            />
+            <TreeItem key={child.path} node={child} depth={depth + 1} {...childProps} />
           ))}
       </div>
     )
@@ -271,13 +405,12 @@ function TreeItem({
   // ── File (note or asset) ──────────────────────────────────────────────────
   if (isRenaming) {
     return (
-      // Plain div — autoFocus on the input inside works correctly
       <div
         style={{ paddingLeft: `${indent + 8}px` }}
         className={[baseClass, 'bg-white/[0.10]'].join(' ')}
       >
         <IndentGuides depth={depth} />
-        <FileText size={13} className="flex-shrink-0 text-vault-muted/60" />
+        <FileText size={14} className="flex-shrink-0 text-vault-muted/60" />
         <RenameInput
           initialValue={node.name.replace(/\.md$/, '')}
           onSubmit={(v) => onRenameSubmit(node.path, v)}
@@ -289,6 +422,7 @@ function TreeItem({
 
   return (
     <button
+      ref={buttonRef}
       draggable
       style={{ paddingLeft: `${indent + 8}px` }}
       className={[
@@ -299,6 +433,7 @@ function TreeItem({
           : isSelected
             ? 'bg-white/[0.10] text-vault-text'
             : 'text-vault-text hover:bg-white/[0.06]',
+        revealPath === node.path ? 'ring-1 ring-vault-accent/60' : '',
       ].join(' ')}
       onDragStart={(e) => drag.onDragStart(e, node.path)}
       onDragOver={(e) => drag.onDragOver(e, node.path)}
@@ -317,17 +452,17 @@ function TreeItem({
       {node.assetExt ? (
         <>
           {IMAGE_EXTS_SET.has(node.assetExt)
-            ? <Image size={13} className="flex-shrink-0 text-vault-muted/40" />
-            : <File size={13} className="flex-shrink-0 text-vault-muted/40" />
+            ? <Image size={14} className="flex-shrink-0 text-vault-muted/40" />
+            : <File size={14} className="flex-shrink-0 text-vault-muted/40" />
           }
           <span className="truncate text-vault-muted/80">{node.name}</span>
-          <span className="ml-auto flex-shrink-0 text-[9px] font-medium uppercase text-vault-muted/50 tracking-wider">
+          <span className="ml-auto flex-shrink-0 text-[10px] font-medium uppercase text-vault-muted/50 tracking-wider">
             {node.assetExt.slice(1)}
           </span>
         </>
       ) : (
         <>
-          <FileText size={13} className="flex-shrink-0 text-vault-muted/60" />
+          <FileText size={14} className="flex-shrink-0 text-vault-muted/60" />
           <span className="truncate">{node.name.replace(/\.md$/, '')}</span>
         </>
       )}
@@ -335,14 +470,15 @@ function TreeItem({
   )
 }
 
+// ── FileTree (root) ───────────────────────────────────────────────────────────
+
 export default function FileTree(): React.JSX.Element {
   const { notes, assets, selectedNote, setSelectedNote, loadNotes, loadAssets, activeConfig } = useVaultStore()
   const { openTab, openAssetTab, renameItemPath, closeTab, tabs } = useEditorStore()
+
   const [search, setSearch] = useState('')
   const [creating, setCreating] = useState<'note' | 'folder' | null>(null)
   const [newName, setNewName] = useState('')
-  // createTarget: explicit parent folder for context-menu triggered create
-  // (overrides getCreateParent's selectedNote-based logic)
   const [createTarget, setCreateTarget] = useState<string | null>(null)
   const newNameRef = useRef<HTMLInputElement>(null)
   const [emptyFolders, setEmptyFolders] = useState<string[]>([])
@@ -350,6 +486,20 @@ export default function FileTree(): React.JSX.Element {
   const dragSrcRef = useRef<string | null>(null)
   const [renamingPath, setRenamingPath] = useState<string | null>(null)
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; node: TreeNode } | null>(null)
+
+  // ── Toolbar state ─────────────────────────────────────────────────────────
+  const [sortMode, setSortMode] = useState<SortMode>('az')
+  const [showSortMenu, setShowSortMenu] = useState(false)
+  const sortAnchorRef = useRef<HTMLDivElement>(null)
+  // Monotonically-increasing keys trigger expand/collapse in every TreeItem
+  const [expandKey, setExpandKey] = useState(0)
+  const [collapseKey, setCollapseKey] = useState(0)
+  const [isAllCollapsed, setIsAllCollapsed] = useState(false)
+  // Reveal: path to scroll to + set of ancestor folders to force-open
+  const [revealPath, setRevealPath] = useState<string | null>(null)
+  const [revealAncestors, setRevealAncestors] = useState<ReadonlySet<string>>(new Set())
+
+  // ── Bootstrap ─────────────────────────────────────────────────────────────
 
   useEffect(() => {
     if (creating) newNameRef.current?.focus()
@@ -364,7 +514,7 @@ export default function FileTree(): React.JSX.Element {
     const off1 = window.api.vault.onFileCreated(reload)
     const off2 = window.api.vault.onFileDeleted(reload)
     const off3 = window.api.vault.onFileChanged(reload)
-    const off4 = window.api.vault.onRegistryChanged(reload) // picks up post-import reindex
+    const off4 = window.api.vault.onRegistryChanged(reload)
     return () => { off1(); off2(); off3(); off4() }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -373,6 +523,8 @@ export default function FileTree(): React.JSX.Element {
       prev.filter((f) => !notes.some((n) => n.relativePath.startsWith(f + '/')))
     )
   }, [notes])
+
+  // ── Create ────────────────────────────────────────────────────────────────
 
   function handleNoteSelect(note: NoteMetadata): void {
     setSelectedNote(note)
@@ -425,7 +577,7 @@ export default function FileTree(): React.JSX.Element {
     setNewName('')
   }
 
-  // ── Inline rename ────────────────────────────────────────────────────────
+  // ── Rename ────────────────────────────────────────────────────────────────
 
   function startRename(path: string): void {
     setRenamingPath(path)
@@ -444,7 +596,6 @@ export default function FileTree(): React.JSX.Element {
     if (isNote) {
       newBaseName = trimmed.endsWith('.md') ? trimmed : `${trimmed}.md`
     } else {
-      // For assets: preserve extension if the user didn't type one
       const extMatch = oldBaseName.match(/(\.[^.]+)$/)
       const ext = extMatch ? extMatch[1] : ''
       newBaseName = ext && !trimmed.endsWith(ext) ? `${trimmed}${ext}` : trimmed
@@ -458,7 +609,7 @@ export default function FileTree(): React.JSX.Element {
       await window.api.notes.rename(oldPath, newPath)
       renameItemPath(oldPath, newPath)
       await loadNotes()
-      await loadAssets()   // refresh asset tree after rename
+      await loadAssets()
     } catch (err) {
       console.error('Rename failed:', err)
     }
@@ -468,7 +619,7 @@ export default function FileTree(): React.JSX.Element {
     setRenamingPath(null)
   }
 
-  // ── Delete ───────────────────────────────────────────────────────────────
+  // ── Delete ────────────────────────────────────────────────────────────────
 
   async function handleDelete(node: TreeNode): Promise<void> {
     const label = node.isFolder ? `folder "${node.name}" and all its contents` : `"${node.name.replace(/\.md$/, '')}"`
@@ -476,7 +627,6 @@ export default function FileTree(): React.JSX.Element {
     if (!confirmed) return
     try {
       await window.api.notes.delete(node.path)
-      // Close any open tabs for deleted item
       if (!node.isFolder) {
         const tab = tabs.find((t) => t.relativePath === node.path)
         if (tab) closeTab(tab.id)
@@ -489,7 +639,7 @@ export default function FileTree(): React.JSX.Element {
     }
   }
 
-  // ── Context menu ─────────────────────────────────────────────────────────
+  // ── Context menu ──────────────────────────────────────────────────────────
 
   function openContextMenu(e: React.MouseEvent, node: TreeNode): void {
     e.preventDefault()
@@ -503,54 +653,19 @@ export default function FileTree(): React.JSX.Element {
       : node.path.split('/').slice(0, -1).join('/')
 
     const items: ContextMenuItem[] = []
-
-    // Create in same folder
-    items.push({
-      label: 'New note',
-      icon: 'file-text',
-      onClick: () => startCreating('note', folderForNew)
-    })
-    items.push({
-      label: 'New folder',
-      icon: 'folder-plus',
-      onClick: () => startCreating('folder', folderForNew)
-    })
-
+    items.push({ label: 'New note',   icon: 'file-text',   onClick: () => startCreating('note', folderForNew) })
+    items.push({ label: 'New folder', icon: 'folder-plus', onClick: () => startCreating('folder', folderForNew) })
     items.push({ separator: true, label: '' })
-
-    items.push({
-      label: 'Rename…',
-      icon: 'pencil',
-      onClick: () => startRename(node.path)
-    })
-
+    items.push({ label: 'Rename…',    icon: 'pencil',      onClick: () => startRename(node.path) })
     items.push({ separator: true, label: '' })
-
-    items.push({
-      label: 'Copy path',
-      icon: 'copy',
-      onClick: () => navigator.clipboard.writeText(node.path)
-    })
-
-    items.push({
-      label: 'Show in Explorer',
-      icon: 'folder-open',
-      onClick: () => window.api.notes.showInExplorer(node.path)
-    })
-
+    items.push({ label: 'Copy path',       icon: 'copy',        onClick: () => navigator.clipboard.writeText(node.path) })
+    items.push({ label: 'Show in Explorer',icon: 'folder-open', onClick: () => window.api.notes.showInExplorer(node.path) })
     items.push({ separator: true, label: '' })
-
-    items.push({
-      label: 'Delete',
-      icon: 'trash',
-      danger: true,
-      onClick: () => handleDelete(node)
-    })
-
+    items.push({ label: 'Delete', icon: 'trash', danger: true, onClick: () => handleDelete(node) })
     return items
   }
 
-  // ── Drag & drop ──────────────────────────────────────────────────────────
+  // ── Drag & drop ───────────────────────────────────────────────────────────
 
   function handleDragStart(e: React.DragEvent, path: string): void {
     dragSrcRef.current = path
@@ -565,37 +680,27 @@ export default function FileTree(): React.JSX.Element {
   }
 
   function handleDragLeave(e: React.DragEvent): void {
-    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-      setDragOverPath(null)
-    }
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOverPath(null)
   }
 
   async function handleDrop(e: React.DragEvent, targetNode: TreeNode): Promise<void> {
     e.preventDefault()
     e.stopPropagation()
     setDragOverPath(null)
-
     const src = dragSrcRef.current
     dragSrcRef.current = null
     if (!src) return
-
     const destFolder = targetNode.isFolder
       ? targetNode.path
       : targetNode.path.split('/').slice(0, -1).join('/')
-
     const srcName = src.split('/').pop()!
     const newPath = destFolder ? `${destFolder}/${srcName}` : srcName
-
-    if (src === newPath) return
-    if (newPath.startsWith(src + '/')) return
-
+    if (src === newPath || newPath.startsWith(src + '/')) return
     try {
       await window.api.notes.rename(src, newPath)
       renameItemPath(src, newPath)
       await loadNotes()
-    } catch (err) {
-      console.error('Move failed:', err)
-    }
+    } catch (err) { console.error('Move failed:', err) }
   }
 
   const dragHandlers: DragHandlers = {
@@ -606,50 +711,115 @@ export default function FileTree(): React.JSX.Element {
     dragOverPath,
   }
 
+  // ── Toolbar actions ───────────────────────────────────────────────────────
+
+  function handleToggleCollapseExpand(): void {
+    if (isAllCollapsed) {
+      setExpandKey((k) => k + 1)
+      setIsAllCollapsed(false)
+    } else {
+      setCollapseKey((k) => k + 1)
+      setIsAllCollapsed(true)
+    }
+  }
+
+  function handleReveal(): void {
+    if (!selectedNote) return
+    const parts = selectedNote.relativePath.split('/')
+    const ancestors = new Set<string>()
+    for (let i = 1; i < parts.length; i++) {
+      ancestors.add(parts.slice(0, i).join('/'))
+    }
+    // First open ancestor folders, then set the reveal path after a tick
+    setRevealAncestors(ancestors)
+    setRevealPath(selectedNote.relativePath)
+  }
+
+  const handleRevealed = useCallback((): void => {
+    // Brief highlight, then clear
+    setTimeout(() => {
+      setRevealPath(null)
+      setRevealAncestors(new Set())
+    }, 1200)
+  }, [])
+
+  // ── Derived data ──────────────────────────────────────────────────────────
+
   const filtered = useMemo(() => {
     if (!search.trim()) return notes
     const q = search.toLowerCase()
     return notes.filter((n) => n.title.toLowerCase().includes(q) || n.relativePath.toLowerCase().includes(q))
   }, [notes, search])
 
-  const tree = useMemo(() => buildTree(filtered, emptyFolders, assets), [filtered, emptyFolders, assets])
+  const tree = useMemo(
+    () => buildTree(filtered, emptyFolders, assets, sortMode),
+    [filtered, emptyFolders, assets, sortMode],
+  )
 
   const createParent = getCreateParent()
+  const SortIcon = sortIcon(sortMode)
+
+  // ── Render ────────────────────────────────────────────────────────────────
 
   return (
     <div className="flex flex-col h-full select-none">
-      {/* Header */}
-      <div className="px-3 py-2 border-b border-vault-border flex items-center justify-between">
-        <span className="text-xs font-semibold text-vault-muted uppercase tracking-wider">
+
+      {/* Header: vault name + note count */}
+      <div className="px-3 py-2.5 border-b border-vault-border flex items-center justify-between">
+        <span className="text-sm font-semibold text-vault-muted uppercase tracking-wider truncate">
           {activeConfig?.name ?? 'Vault'}
         </span>
-        <div className="flex items-center gap-1">
-          <span className="text-xs text-vault-muted mr-1">{notes.length}</span>
-          {activeConfig && (
-            <>
-              <button
-                onClick={() => startCreating('note')}
-                title="New note"
-                className="text-vault-muted hover:text-vault-text hover:bg-vault-border/40 rounded p-1 transition-colors"
-              >
-                <FilePlus size={14} />
-              </button>
-              <button
-                onClick={() => startCreating('folder')}
-                title="New folder"
-                className="text-vault-muted hover:text-vault-text hover:bg-vault-border/40 rounded p-1 transition-colors"
-              >
-                <FolderPlus size={14} />
-              </button>
-            </>
-          )}
-        </div>
+        <span className="text-sm text-vault-muted flex-shrink-0 ml-1">{notes.length}</span>
       </div>
+
+      {/* Toolbar */}
+      {activeConfig && (
+        <div className="flex items-center gap-0.5 px-2 py-1.5 border-b border-vault-border">
+          <ToolbarBtn Icon={FilePlus}   title="New note (in current folder)"   onClick={() => startCreating('note')} />
+          <ToolbarBtn Icon={FolderPlus} title="New folder (in current folder)" onClick={() => startCreating('folder')} />
+
+          {/* Divider */}
+          <div className="w-px h-3.5 bg-vault-border mx-0.5 flex-shrink-0" />
+
+          {/* Sort */}
+          <div className="relative" ref={sortAnchorRef}>
+            <ToolbarBtn
+              Icon={SortIcon}
+              title={`Sort: ${SORT_OPTIONS.find((o) => o.mode === sortMode)?.label}`}
+              onClick={() => setShowSortMenu((v) => !v)}
+              active={sortMode !== 'az'}
+            />
+            {showSortMenu && (
+              <SortDropdown
+                current={sortMode}
+                anchorRef={sortAnchorRef}
+                onSelect={setSortMode}
+                onClose={() => setShowSortMenu(false)}
+              />
+            )}
+          </div>
+
+          {/* Reveal active file */}
+          <ToolbarBtn
+            Icon={Crosshair}
+            title="Reveal active file in tree"
+            onClick={handleReveal}
+            disabled={!selectedNote}
+          />
+
+          {/* Collapse / Expand all */}
+          <ToolbarBtn
+            Icon={isAllCollapsed ? ChevronsUpDown : ChevronsDownUp}
+            title={isAllCollapsed ? 'Expand all folders' : 'Collapse all folders'}
+            onClick={handleToggleCollapseExpand}
+          />
+        </div>
+      )}
 
       {/* Inline create input */}
       {creating && (
-        <div className="px-2 py-1.5 border-b border-vault-border bg-vault-surface/50">
-          <div className="text-xs text-vault-muted mb-1">
+        <div className="px-2 py-2 border-b border-vault-border bg-vault-surface/50">
+          <div className="text-sm text-vault-muted mb-1.5">
             {creating === 'note' ? 'New note' : 'New folder'}
             {createParent ? ` in ${createParent}/` : ' in vault root'}
           </div>
@@ -660,22 +830,22 @@ export default function FileTree(): React.JSX.Element {
               onChange={(e) => setNewName(e.target.value)}
               onKeyDown={(e) => e.key === 'Escape' && cancelCreate()}
               placeholder={creating === 'note' ? 'note-name' : 'folder-name'}
-              className="flex-1 rounded border border-vault-accent bg-vault-bg px-2 py-1 text-xs text-vault-text outline-none placeholder:text-vault-muted"
+              className="flex-1 rounded border border-vault-accent bg-vault-bg px-2 py-1.5 text-sm text-vault-text outline-none placeholder:text-vault-muted"
             />
-            <button type="submit" className="rounded bg-vault-accent/20 hover:bg-vault-accent/30 px-2 py-1 text-xs text-vault-accent transition-colors flex items-center">✓</button>
-            <button type="button" onClick={cancelCreate} className="rounded hover:bg-vault-border/40 px-2 py-1 text-xs text-vault-muted transition-colors flex items-center">✕</button>
+            <button type="submit" className="rounded bg-vault-accent/20 hover:bg-vault-accent/30 px-2 py-1.5 text-sm text-vault-accent transition-colors flex items-center">✓</button>
+            <button type="button" onClick={cancelCreate} className="rounded hover:bg-vault-border/40 px-2 py-1.5 text-sm text-vault-muted transition-colors flex items-center">✕</button>
           </form>
         </div>
       )}
 
-      {/* Search */}
-      <div className="px-2 py-1.5">
+      {/* Search / filter */}
+      <div className="px-2 py-2">
         <input
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Filter notes…"
-          className="w-full rounded border border-vault-border bg-vault-bg px-2 py-1 text-xs text-vault-text outline-none focus:border-vault-accent placeholder:text-vault-muted"
+          className="w-full rounded border border-vault-border bg-vault-bg px-2.5 py-1.5 text-sm text-vault-text outline-none focus:border-vault-accent placeholder:text-vault-muted"
         />
       </div>
 
@@ -699,7 +869,7 @@ export default function FileTree(): React.JSX.Element {
         }}
       >
         {tree.length === 0 ? (
-          <p className="text-xs text-vault-muted px-3 py-4 text-center">
+          <p className="text-sm text-vault-muted px-3 py-4 text-center">
             {notes.length === 0 ? 'No notes yet' : 'No matches'}
           </p>
         ) : (
@@ -716,6 +886,11 @@ export default function FileTree(): React.JSX.Element {
               onRenameSubmit={handleRenameSubmit}
               onRenameCancel={handleRenameCancel}
               onContextMenu={openContextMenu}
+              expandKey={expandKey}
+              collapseKey={collapseKey}
+              revealPath={revealPath}
+              revealAncestors={revealAncestors}
+              onRevealed={handleRevealed}
             />
           ))
         )}
