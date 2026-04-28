@@ -1,6 +1,6 @@
 {
   "name": "mindpalace",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "Local-first markdown note-taking with GitHub vault sync",
   "main": "out/main/index.js",
   "scripts": {
