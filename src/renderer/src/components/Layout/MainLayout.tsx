@@ -94,18 +94,18 @@ export default function MainLayout(): React.JSX.Element {
           <div className="flex-shrink-0 border-t border-vault-border">
             <button
               onClick={openGraph}
-              className="flex items-center gap-2 px-3 py-1.5 text-xs text-vault-muted hover:text-vault-text hover:bg-vault-border/40 transition-colors w-full text-left"
+              className="flex items-center gap-2 px-3 py-2 text-sm text-vault-muted hover:text-vault-text hover:bg-vault-border/40 transition-colors w-full text-left"
               title="Graph view (Ctrl+Shift+G)"
             >
-              <Network size={14} />
+              <Network size={15} />
               <span>Graph View</span>
             </button>
             <button
               onClick={openSettings}
-              className="flex items-center gap-2 px-3 py-1.5 text-xs text-vault-muted hover:text-vault-text hover:bg-vault-border/40 transition-colors w-full text-left"
+              className="flex items-center gap-2 px-3 py-2 text-sm text-vault-muted hover:text-vault-text hover:bg-vault-border/40 transition-colors w-full text-left"
               title="Settings (Ctrl+,)"
             >
-              <Settings size={14} />
+              <Settings size={15} />
               <span>Settings</span>
             </button>
           </div>

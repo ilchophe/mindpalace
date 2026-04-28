@@ -123,7 +123,7 @@ interface DragHandlers {
 
 // ── Shared helpers ────────────────────────────────────────────────────────────
 
-const INDENT_PX = 20
+const INDENT_PX = 22
 
 function IndentGuides({ depth }: { depth: number }): React.JSX.Element | null {
   if (depth === 0) return null
@@ -220,7 +220,7 @@ function ToolbarBtn({
       onClick={onClick}
       disabled={disabled}
       className={[
-        'flex items-center justify-center w-6 h-6 rounded transition-colors',
+        'flex items-center justify-center w-7 h-7 rounded transition-colors',
         disabled
           ? 'text-vault-muted/30 cursor-default'
           : active
@@ -228,7 +228,7 @@ function ToolbarBtn({
             : 'text-vault-muted hover:text-vault-text hover:bg-vault-border/50',
       ].join(' ')}
     >
-      <Icon size={13} />
+      <Icon size={15} />
     </button>
   )
 }
@@ -271,13 +271,13 @@ function SortDropdown({
           key={mode}
           onClick={() => { onSelect(mode); onClose() }}
           className={[
-            'flex items-center gap-2 w-full px-3 py-1.5 text-xs text-left transition-colors',
+            'flex items-center gap-2 w-full px-3 py-2 text-sm text-left transition-colors',
             mode === current
               ? 'text-vault-accent bg-vault-accent/10'
               : 'text-vault-text hover:bg-vault-border/40',
           ].join(' ')}
         >
-          <Icon size={13} className="flex-shrink-0" />
+          <Icon size={14} className="flex-shrink-0" />
           {label}
           {mode === current && <span className="ml-auto text-vault-accent">✓</span>}
         </button>
@@ -350,7 +350,7 @@ function TreeItem({
   }, [revealPath, node.isFolder, node.path, onRevealed])
 
   const baseClass =
-    'relative flex items-center gap-1.5 w-full py-[3px] pr-2 text-left text-sm rounded transition-colors cursor-default'
+    'relative flex items-center gap-1.5 w-full py-1 pr-2 text-left text-sm rounded transition-colors cursor-default'
   const dragOverClass = isDragOver ? 'bg-vault-accent/20 ring-1 ring-vault-accent/50' : ''
 
   const childProps = {
@@ -410,7 +410,7 @@ function TreeItem({
         className={[baseClass, 'bg-white/[0.10]'].join(' ')}
       >
         <IndentGuides depth={depth} />
-        <FileText size={13} className="flex-shrink-0 text-vault-muted/60" />
+        <FileText size={14} className="flex-shrink-0 text-vault-muted/60" />
         <RenameInput
           initialValue={node.name.replace(/\.md$/, '')}
           onSubmit={(v) => onRenameSubmit(node.path, v)}
@@ -452,17 +452,17 @@ function TreeItem({
       {node.assetExt ? (
         <>
           {IMAGE_EXTS_SET.has(node.assetExt)
-            ? <Image size={13} className="flex-shrink-0 text-vault-muted/40" />
-            : <File size={13} className="flex-shrink-0 text-vault-muted/40" />
+            ? <Image size={14} className="flex-shrink-0 text-vault-muted/40" />
+            : <File size={14} className="flex-shrink-0 text-vault-muted/40" />
           }
           <span className="truncate text-vault-muted/80">{node.name}</span>
-          <span className="ml-auto flex-shrink-0 text-[9px] font-medium uppercase text-vault-muted/50 tracking-wider">
+          <span className="ml-auto flex-shrink-0 text-[10px] font-medium uppercase text-vault-muted/50 tracking-wider">
             {node.assetExt.slice(1)}
           </span>
         </>
       ) : (
         <>
-          <FileText size={13} className="flex-shrink-0 text-vault-muted/60" />
+          <FileText size={14} className="flex-shrink-0 text-vault-muted/60" />
           <span className="truncate">{node.name.replace(/\.md$/, '')}</span>
         </>
       )}
@@ -765,16 +765,16 @@ export default function FileTree(): React.JSX.Element {
     <div className="flex flex-col h-full select-none">
 
       {/* Header: vault name + note count */}
-      <div className="px-3 py-2 border-b border-vault-border flex items-center justify-between">
-        <span className="text-xs font-semibold text-vault-muted uppercase tracking-wider truncate">
+      <div className="px-3 py-2.5 border-b border-vault-border flex items-center justify-between">
+        <span className="text-sm font-semibold text-vault-muted uppercase tracking-wider truncate">
           {activeConfig?.name ?? 'Vault'}
         </span>
-        <span className="text-xs text-vault-muted flex-shrink-0 ml-1">{notes.length}</span>
+        <span className="text-sm text-vault-muted flex-shrink-0 ml-1">{notes.length}</span>
       </div>
 
       {/* Toolbar */}
       {activeConfig && (
-        <div className="flex items-center gap-0.5 px-2 py-1 border-b border-vault-border">
+        <div className="flex items-center gap-0.5 px-2 py-1.5 border-b border-vault-border">
           <ToolbarBtn Icon={FilePlus}   title="New note (in current folder)"   onClick={() => startCreating('note')} />
           <ToolbarBtn Icon={FolderPlus} title="New folder (in current folder)" onClick={() => startCreating('folder')} />
 
@@ -818,8 +818,8 @@ export default function FileTree(): React.JSX.Element {
 
       {/* Inline create input */}
       {creating && (
-        <div className="px-2 py-1.5 border-b border-vault-border bg-vault-surface/50">
-          <div className="text-xs text-vault-muted mb-1">
+        <div className="px-2 py-2 border-b border-vault-border bg-vault-surface/50">
+          <div className="text-sm text-vault-muted mb-1.5">
             {creating === 'note' ? 'New note' : 'New folder'}
             {createParent ? ` in ${createParent}/` : ' in vault root'}
           </div>
@@ -830,22 +830,22 @@ export default function FileTree(): React.JSX.Element {
               onChange={(e) => setNewName(e.target.value)}
               onKeyDown={(e) => e.key === 'Escape' && cancelCreate()}
               placeholder={creating === 'note' ? 'note-name' : 'folder-name'}
-              className="flex-1 rounded border border-vault-accent bg-vault-bg px-2 py-1 text-xs text-vault-text outline-none placeholder:text-vault-muted"
+              className="flex-1 rounded border border-vault-accent bg-vault-bg px-2 py-1.5 text-sm text-vault-text outline-none placeholder:text-vault-muted"
             />
-            <button type="submit" className="rounded bg-vault-accent/20 hover:bg-vault-accent/30 px-2 py-1 text-xs text-vault-accent transition-colors flex items-center">✓</button>
-            <button type="button" onClick={cancelCreate} className="rounded hover:bg-vault-border/40 px-2 py-1 text-xs text-vault-muted transition-colors flex items-center">✕</button>
+            <button type="submit" className="rounded bg-vault-accent/20 hover:bg-vault-accent/30 px-2 py-1.5 text-sm text-vault-accent transition-colors flex items-center">✓</button>
+            <button type="button" onClick={cancelCreate} className="rounded hover:bg-vault-border/40 px-2 py-1.5 text-sm text-vault-muted transition-colors flex items-center">✕</button>
           </form>
         </div>
       )}
 
       {/* Search / filter */}
-      <div className="px-2 py-1.5">
+      <div className="px-2 py-2">
         <input
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Filter notes…"
-          className="w-full rounded border border-vault-border bg-vault-bg px-2 py-1 text-xs text-vault-text outline-none focus:border-vault-accent placeholder:text-vault-muted"
+          className="w-full rounded border border-vault-border bg-vault-bg px-2.5 py-1.5 text-sm text-vault-text outline-none focus:border-vault-accent placeholder:text-vault-muted"
         />
       </div>
 
@@ -869,7 +869,7 @@ export default function FileTree(): React.JSX.Element {
         }}
       >
         {tree.length === 0 ? (
-          <p className="text-xs text-vault-muted px-3 py-4 text-center">
+          <p className="text-sm text-vault-muted px-3 py-4 text-center">
             {notes.length === 0 ? 'No notes yet' : 'No matches'}
           </p>
         ) : (
