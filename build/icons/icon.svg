@@ -1,0 +1,225 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <!-- Background gradient: deep navy → dark blue -->
+    <linearGradient id="bgGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%"   stop-color="#141929"/>
+      <stop offset="100%" stop-color="#1a2540"/>
+    </linearGradient>
+
+    <!-- Vault body gradient: dark surface with slight shine -->
+    <linearGradient id="vaultGrad" x1="0" y1="0" x2="0.3" y2="1">
+      <stop offset="0%"   stop-color="#2e3a55"/>
+      <stop offset="60%"  stop-color="#1e2a42"/>
+      <stop offset="100%" stop-color="#151e33"/>
+    </linearGradient>
+
+    <!-- Vault door gradient -->
+    <linearGradient id="doorGrad" x1="0.1" y1="0" x2="0.9" y2="1">
+      <stop offset="0%"   stop-color="#263350"/>
+      <stop offset="100%" stop-color="#111828"/>
+    </linearGradient>
+
+    <!-- Accent blue glow for dial -->
+    <radialGradient id="dialGrad" cx="50%" cy="40%" r="60%">
+      <stop offset="0%"   stop-color="#7aaeff"/>
+      <stop offset="50%"  stop-color="#4f81f5"/>
+      <stop offset="100%" stop-color="#2a55c0"/>
+    </radialGradient>
+
+    <!-- Chain link gradient: metallic blue-grey -->
+    <linearGradient id="chainGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%"   stop-color="#6a9ae8"/>
+      <stop offset="40%"  stop-color="#4f81f5"/>
+      <stop offset="100%" stop-color="#2d5bbf"/>
+    </linearGradient>
+
+    <!-- Chain link highlight -->
+    <linearGradient id="chainHL" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#9bbcf7"/>
+      <stop offset="100%" stop-color="#4f81f5"/>
+    </linearGradient>
+
+    <!-- Drop shadow filter -->
+    <filter id="shadow" x="-15%" y="-15%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="8" stdDeviation="18" flood-color="#000" flood-opacity="0.5"/>
+    </filter>
+
+    <!-- Glow filter for dial -->
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+
+    <!-- Inner shadow for vault body -->
+    <filter id="innerShadow">
+      <feOffset dx="0" dy="4"/>
+      <feGaussianBlur stdDeviation="6" result="offset-blur"/>
+      <feComposite operator="out" in="SourceGraphic" in2="offset-blur" result="inverse"/>
+      <feFlood flood-color="#000" flood-opacity="0.3" result="color"/>
+      <feComposite operator="in" in="color" in2="inverse" result="shadow"/>
+      <feComposite operator="over" in="shadow" in2="SourceGraphic"/>
+    </filter>
+
+    <clipPath id="roundClip">
+      <rect width="1024" height="1024" rx="224" ry="224"/>
+    </clipPath>
+  </defs>
+
+  <!-- ── App icon rounded-rect background ── -->
+  <rect width="1024" height="1024" rx="224" ry="224" fill="url(#bgGrad)"/>
+
+  <!-- ── Subtle grid texture overlay ── -->
+  <rect width="1024" height="1024" rx="224" ry="224" fill="none"
+        stroke="#4f81f5" stroke-width="0.5" stroke-opacity="0.06"/>
+
+  <!-- ══════════════════════════════════════════════
+       CHAIN — drawn behind the vault body
+  ══════════════════════════════════════════════ -->
+
+  <!-- Chain wraps diagonally from bottom-left to top-right.
+       Each link is a rounded-rect outline (the "ring" shape). -->
+
+  <!-- Bottom-left cluster -->
+  <g fill="none" stroke="url(#chainGrad)" stroke-width="22" stroke-linecap="round" opacity="0.92">
+    <!-- Link 1: lower-left, horizontal -->
+    <rect x="148" y="720" width="88" height="50" rx="25" ry="25" filter="url(#shadow)"/>
+    <!-- Link 2: offset vertical -->
+    <rect x="200" y="682" width="50" height="88" rx="25" ry="25" filter="url(#shadow)"/>
+    <!-- Link 3 -->
+    <rect x="246" y="648" width="88" height="50" rx="25" ry="25" filter="url(#shadow)"/>
+    <!-- Link 4 -->
+    <rect x="298" y="610" width="50" height="88" rx="25" ry="25" filter="url(#shadow)"/>
+    <!-- Link 5 -->
+    <rect x="346" y="576" width="88" height="50" rx="25" ry="25" filter="url(#shadow)"/>
+  </g>
+
+  <!-- Top-right cluster -->
+  <g fill="none" stroke="url(#chainGrad)" stroke-width="22" stroke-linecap="round" opacity="0.92">
+    <!-- Link 6 -->
+    <rect x="590" y="398" width="50" height="88" rx="25" ry="25" filter="url(#shadow)"/>
+    <!-- Link 7 -->
+    <rect x="638" y="364" width="88" height="50" rx="25" ry="25" filter="url(#shadow)"/>
+    <!-- Link 8 -->
+    <rect x="690" y="328" width="50" height="88" rx="25" ry="25" filter="url(#shadow)"/>
+    <!-- Link 9 -->
+    <rect x="738" y="294" width="88" height="50" rx="25" ry="25" filter="url(#shadow)"/>
+    <!-- Link 10 -->
+    <rect x="790" y="260" width="50" height="88" rx="25" ry="25" filter="url(#shadow)"/>
+  </g>
+
+  <!-- Chain highlight inner strokes (lighter top edge) -->
+  <g fill="none" stroke="url(#chainHL)" stroke-width="6" stroke-linecap="round" opacity="0.55">
+    <rect x="148" y="720" width="88" height="50" rx="25" ry="25"/>
+    <rect x="200" y="682" width="50" height="88" rx="25" ry="25"/>
+    <rect x="246" y="648" width="88" height="50" rx="25" ry="25"/>
+    <rect x="298" y="610" width="50" height="88" rx="25" ry="25"/>
+    <rect x="346" y="576" width="88" height="50" rx="25" ry="25"/>
+    <rect x="590" y="398" width="50" height="88" rx="25" ry="25"/>
+    <rect x="638" y="364" width="88" height="50" rx="25" ry="25"/>
+    <rect x="690" y="328" width="50" height="88" rx="25" ry="25"/>
+    <rect x="738" y="294" width="88" height="50" rx="25" ry="25"/>
+    <rect x="790" y="260" width="50" height="88" rx="25" ry="25"/>
+  </g>
+
+  <!-- ══════════════════════════════════════════════
+       VAULT BODY — centred, in front of chain
+  ══════════════════════════════════════════════ -->
+
+  <!-- Vault outer casing (thick metal surround) -->
+  <rect x="238" y="268" width="548" height="488" rx="42" ry="42"
+        fill="url(#vaultGrad)" filter="url(#shadow)"/>
+
+  <!-- Vault body border (edge highlight) -->
+  <rect x="238" y="268" width="548" height="488" rx="42" ry="42"
+        fill="none" stroke="#4a6aaa" stroke-width="3" stroke-opacity="0.6"/>
+
+  <!-- Bolt holes — four corners of vault face -->
+  <circle cx="284" cy="316" r="18" fill="#0f1628" stroke="#3a5090" stroke-width="2.5"/>
+  <circle cx="740" cy="316" r="18" fill="#0f1628" stroke="#3a5090" stroke-width="2.5"/>
+  <circle cx="284" cy="708" r="18" fill="#0f1628" stroke="#3a5090" stroke-width="2.5"/>
+  <circle cx="740" cy="708" r="18" fill="#0f1628" stroke="#3a5090" stroke-width="2.5"/>
+
+  <!-- Bolt screws (small cross on each) -->
+  <g stroke="#5572a8" stroke-width="3" stroke-linecap="round">
+    <line x1="278" y1="316" x2="290" y2="316"/><line x1="284" y1="310" x2="284" y2="322"/>
+    <line x1="734" y1="316" x2="746" y2="316"/><line x1="740" y1="310" x2="740" y2="322"/>
+    <line x1="278" y1="708" x2="290" y2="708"/><line x1="284" y1="702" x2="284" y2="714"/>
+    <line x1="734" y1="708" x2="746" y2="708"/><line x1="740" y1="702" x2="740" y2="714"/>
+  </g>
+
+  <!-- Door inset (recessed door panel) -->
+  <rect x="296" y="312" width="432" height="400" rx="28" ry="28"
+        fill="url(#doorGrad)" stroke="#2a3e70" stroke-width="2"/>
+
+  <!-- Door hinge (left side) -->
+  <rect x="284" y="374" width="24" height="50" rx="6" ry="6"
+        fill="#2a3a60" stroke="#4a6090" stroke-width="1.5"/>
+  <rect x="284" y="498" width="24" height="50" rx="6" ry="6"
+        fill="#2a3a60" stroke="#4a6090" stroke-width="1.5"/>
+
+  <!-- Handle bar (right side) -->
+  <rect x="700" y="476" width="28" height="72" rx="10" ry="10"
+        fill="#1e2e50" stroke="#4f81f5" stroke-width="2.5"/>
+  <!-- Handle highlight -->
+  <rect x="703" y="479" width="8" height="66" rx="4" ry="4"
+        fill="#6a9ae8" opacity="0.4"/>
+
+  <!-- ── Central combination dial ── -->
+  <!-- Outer ring -->
+  <circle cx="512" cy="512" r="128" fill="#0f1828" stroke="#3558a0" stroke-width="4" filter="url(#shadow)"/>
+  <!-- Dial face -->
+  <circle cx="512" cy="512" r="108" fill="url(#dialGrad)" filter="url(#glow)"/>
+  <!-- Dial ring groove -->
+  <circle cx="512" cy="512" r="94" fill="none" stroke="#1a2e60" stroke-width="6"/>
+  <!-- Tick marks around dial -->
+  <g stroke="#dcddde" stroke-width="3" stroke-linecap="round" opacity="0.7">
+    <!-- 12 tick marks at 30° intervals -->
+    <line x1="512" y1="424" x2="512" y2="436"/>
+    <line x1="576" y1="440" x2="570" y2="450"/>
+    <line x1="616" y1="480" x2="606" y2="486"/>
+    <line x1="628" y1="546" x2="616" y2="546" transform="rotate(30 512 512)"/>
+    <line x1="576" y1="584" x2="570" y2="574" transform="rotate(60 512 512)"/>
+    <line x1="512" y1="600" x2="512" y2="588"/>
+    <line x1="448" y1="584" x2="454" y2="574"/>
+    <line x1="408" y1="544" x2="418" y2="538"/>
+    <line x1="396" y1="480" x2="408" y2="486" transform="rotate(180 512 512)"/>
+    <line x1="448" y1="440" x2="454" y2="450"/>
+    <line x1="448" y1="440" x2="454" y2="450" transform="rotate(-60 512 512)"/>
+    <line x1="576" y1="440" x2="570" y2="450" transform="rotate(-60 512 512)"/>
+  </g>
+  <!-- Dial centre boss -->
+  <circle cx="512" cy="512" r="22" fill="#1a2a50" stroke="#7aaeff" stroke-width="3"/>
+  <circle cx="512" cy="512" r="10" fill="#4f81f5"/>
+
+  <!-- Dial pointer knob -->
+  <rect x="505" y="432" width="14" height="36" rx="7" ry="7" fill="#dcddde" opacity="0.85"/>
+
+  <!-- ── Top edge shine on vault body ── -->
+  <rect x="250" y="270" width="524" height="10" rx="6" ry="6"
+        fill="white" opacity="0.06"/>
+
+  <!-- ══════════════════════════════════════════════
+       CHAIN LINKS that pass IN FRONT of the vault
+       (the part of the chain crossing the face)
+  ══════════════════════════════════════════════ -->
+  <g fill="none" stroke="url(#chainGrad)" stroke-width="22" stroke-linecap="round" opacity="0.92">
+    <rect x="396" y="542" width="88" height="50" rx="25" ry="25" filter="url(#shadow)"/>
+    <rect x="448" y="504" width="50" height="88" rx="25" ry="25" filter="url(#shadow)"/>
+    <rect x="494" y="468" width="88" height="50" rx="25" ry="25" filter="url(#shadow)"/>
+    <rect x="544" y="434" width="50" height="88" rx="25" ry="25" filter="url(#shadow)"/>
+  </g>
+  <!-- Highlight for foreground links -->
+  <g fill="none" stroke="url(#chainHL)" stroke-width="6" stroke-linecap="round" opacity="0.55">
+    <rect x="396" y="542" width="88" height="50" rx="25" ry="25"/>
+    <rect x="448" y="504" width="50" height="88" rx="25" ry="25"/>
+    <rect x="494" y="468" width="88" height="50" rx="25" ry="25"/>
+    <rect x="544" y="434" width="50" height="88" rx="25" ry="25"/>
+  </g>
+
+  <!-- ── Subtle vignette (darkens edges slightly) ── -->
+  <radialGradient id="vignette" cx="50%" cy="50%" r="70%">
+    <stop offset="60%"  stop-color="transparent"/>
+    <stop offset="100%" stop-color="#000" stop-opacity="0.35"/>
+  </radialGradient>
+  <rect width="1024" height="1024" rx="224" ry="224" fill="url(#vignette)"/>
+</svg>
