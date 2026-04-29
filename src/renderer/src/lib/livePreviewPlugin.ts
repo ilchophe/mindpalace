@@ -125,10 +125,11 @@ function toVaultFileUrl(ctx: NoteContext, imgSrc: string): string {
   }
   // Build absolute path: vaultPath/noteDirSegments/imgSrcSegments, then normalise ..
   const noteDirParts = ctx.noteRelPath.split('/').slice(0, -1)
+  const decodedSrc  = decodeURI(imgSrc)          // undo any %20 from preprocessImages
   const rawParts = [
     ...ctx.vaultPath.replace(/\\/g, '/').split('/'),
     ...noteDirParts,
-    ...imgSrc.split('/')
+    ...decodedSrc.split('/')
   ]
   const resolved: string[] = []
   for (const seg of rawParts) {
@@ -417,6 +418,23 @@ function buildDecorations(state: EditorState): DecorationSet {
     deco.push(
       Decoration.replace({
         widget: new ImageWidget(src, im[1], resolvedUrl),
+      }).range(from, to),
+    )
+  }
+
+  // ── Regex fallback: Obsidian wiki-link image embeds ![[image.png]] ──────────
+  const wikiImgRe = /!\[\[([^\]]+\.(png|jpg|jpeg|gif|webp|svg|bmp|ico))\]\]/gi
+  let wi: RegExpExecArray | null
+  while ((wi = wikiImgRe.exec(docText)) !== null) {
+    const src  = wi[1]
+    const from = wi.index
+    const to   = from + wi[0].length
+    if (occupied.has(`${from}:${to}`)) continue
+    if (isFocused && cursorOverlaps(state, from, to)) continue
+    const resolvedUrl = toVaultFileUrl(noteCtx, src)
+    deco.push(
+      Decoration.replace({
+        widget: new ImageWidget(src, src.split('/').pop() ?? src, resolvedUrl),
       }).range(from, to),
     )
   }
