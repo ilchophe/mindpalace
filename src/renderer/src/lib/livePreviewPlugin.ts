@@ -366,7 +366,9 @@ function buildDecorations(state: EditorState): DecorationSet {
           const match = text.match(/^!\[([^\]]*)\]\(([^)]*)\)$/)
           if (match) {
             const alt = match[1]
-            const src = match[2]
+            // Strip optional CommonMark title: ![alt](url "Title") or ![alt](url 'Title')
+            // match[2] contains everything inside (), including the title if present
+            const src = match[2].replace(/\s+(?:"[^"]*"|'[^']*'|\([^)]*\))\s*$/, '').trim()
             const resolvedUrl = toVaultFileUrl(noteCtx, src)
             deco.push(
               Decoration.replace({
@@ -408,7 +410,9 @@ function buildDecorations(state: EditorState): DecorationSet {
   const imgRe = /!\[([^\]]*)\]\(([^)]+)\)/g
   let im: RegExpExecArray | null
   while ((im = imgRe.exec(docText)) !== null) {
-    const src = im[2]
+    // Strip optional CommonMark title before checking for spaces in the path
+    const srcRaw = im[2]
+    const src = srcRaw.replace(/\s+(?:"[^"]*"|'[^']*'|\([^)]*\))\s*$/, '').trim()
     if (!src.includes(' ')) continue                          // already handled by syntax tree
     const from = im.index
     const to   = from + im[0].length
