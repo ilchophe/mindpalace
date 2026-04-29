@@ -18,6 +18,7 @@ import StartupRecoveryModal from '../VaultManager/StartupRecoveryModal'
 const SIDEBAR_MIN = 160
 const SIDEBAR_MAX = 520
 const SIDEBAR_DEFAULT = 224
+const SIDEBAR_STORAGE_KEY = 'mindpalace:sidebarWidth'
 
 export default function MainLayout(): React.JSX.Element {
   const { isManagerOpen, openManager, activeVault, isLoading, startupError } = useVaultStore()
@@ -29,8 +30,16 @@ export default function MainLayout(): React.JSX.Element {
   } = useUIStore()
 
   const [isQuickSwitcherOpen, setIsQuickSwitcherOpen] = React.useState(false)
-  const [sidebarWidth, setSidebarWidth] = React.useState(SIDEBAR_DEFAULT)
+  const [sidebarWidth, setSidebarWidth] = React.useState<number>(() => {
+    const stored = localStorage.getItem(SIDEBAR_STORAGE_KEY)
+    if (stored) {
+      const n = parseInt(stored, 10)
+      if (!isNaN(n) && n >= SIDEBAR_MIN && n <= SIDEBAR_MAX) return n
+    }
+    return SIDEBAR_DEFAULT
+  })
   const isResizing = React.useRef(false)
+  const currentWidthRef = React.useRef(sidebarWidth)
 
   function onResizeStart(e: React.MouseEvent): void {
     e.preventDefault()
@@ -38,7 +47,9 @@ export default function MainLayout(): React.JSX.Element {
 
     function onMouseMove(ev: MouseEvent): void {
       if (!isResizing.current) return
-      setSidebarWidth(Math.max(SIDEBAR_MIN, Math.min(SIDEBAR_MAX, ev.clientX)))
+      const w = Math.max(SIDEBAR_MIN, Math.min(SIDEBAR_MAX, ev.clientX))
+      currentWidthRef.current = w
+      setSidebarWidth(w)
     }
 
     function onMouseUp(): void {
@@ -47,6 +58,7 @@ export default function MainLayout(): React.JSX.Element {
       document.removeEventListener('mouseup', onMouseUp)
       document.body.style.cursor = ''
       document.body.style.userSelect = ''
+      localStorage.setItem(SIDEBAR_STORAGE_KEY, String(currentWidthRef.current))
     }
 
     document.body.style.cursor = 'col-resize'

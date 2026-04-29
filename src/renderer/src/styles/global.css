@@ -296,15 +296,33 @@ code.hljs     { padding: 0; }
 }
 
 .markdown-preview pre {
+  position: relative;
   background: var(--vault-surface);
   border: 1px solid var(--vault-border);
   border-radius: 6px;
-  padding: 1em;
+  padding: 10px 0;
   margin-bottom: 1em;
   overflow-x: hidden;
   white-space: pre-wrap;
   word-break: break-all;
   overflow-wrap: break-word;
+  counter-reset: code-line;
+}
+
+/* Language badge — shown when data-language is present on <pre> */
+.markdown-preview pre[data-language]::after {
+  content: attr(data-language);
+  position: absolute;
+  top: 0.45em;
+  right: 0.75em;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 0.7em;
+  color: var(--vault-muted);
+  opacity: 0.55;
+  text-transform: lowercase;
+  letter-spacing: 0.04em;
+  user-select: none;
+  pointer-events: none;
 }
 
 .markdown-preview pre code {
@@ -315,7 +333,35 @@ code.hljs     { padding: 0; }
   white-space: inherit;
   word-break: inherit;
   overflow-wrap: inherit;
+  display: block;
 }
+
+/* ── Code block line numbers + indent guides ─────────────────────────────── */
+
+.markdown-preview .code-line {
+  display: block;
+  position: relative;
+  padding-left: 3.8em;
+  padding-right: 1em;
+}
+
+.markdown-preview .code-line::before {
+  counter-increment: code-line;
+  content: counter(code-line);
+  position: absolute;
+  left: 0;
+  width: 3em;
+  text-align: right;
+  padding-right: 0.6em;
+  color: var(--vault-muted);
+  opacity: 0.45;
+  font-size: 0.85em;
+  line-height: inherit;
+  border-right: 1px solid var(--vault-border);
+  user-select: none;
+  pointer-events: none;
+}
+
 
 .markdown-preview table {
   border-collapse: collapse;

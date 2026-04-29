@@ -125,10 +125,11 @@ function toVaultFileUrl(ctx: NoteContext, imgSrc: string): string {
   }
   // Build absolute path: vaultPath/noteDirSegments/imgSrcSegments, then normalise ..
   const noteDirParts = ctx.noteRelPath.split('/').slice(0, -1)
+  const decodedSrc  = decodeURI(imgSrc)          // undo any %20 from preprocessImages
   const rawParts = [
     ...ctx.vaultPath.replace(/\\/g, '/').split('/'),
     ...noteDirParts,
-    ...imgSrc.split('/')
+    ...decodedSrc.split('/')
   ]
   const resolved: string[] = []
   for (const seg of rawParts) {
@@ -153,6 +154,7 @@ class CodeBlockWidget extends WidgetType {
   constructor(
     readonly lang: string,
     readonly code: string,
+    readonly from: number,
   ) {
     super()
   }
@@ -161,9 +163,16 @@ class CodeBlockWidget extends WidgetType {
     return other.lang === this.lang && other.code === this.code
   }
 
-  toDOM(): HTMLElement {
+  toDOM(view: EditorView): HTMLElement {
     const wrap = document.createElement('div')
     wrap.className = 'cm-rendered-codeblock'
+
+    // Click anywhere on the block → move cursor into the fenced code syntax
+    wrap.addEventListener('mousedown', (e) => {
+      e.preventDefault()
+      view.dispatch({ selection: { anchor: this.from } })
+      view.focus()
+    })
 
     if (this.lang) {
       const label = document.createElement('span')
@@ -175,7 +184,16 @@ class CodeBlockWidget extends WidgetType {
     const pre = document.createElement('pre')
     const code = document.createElement('code')
     code.className = this.lang ? `hljs language-${this.lang}` : 'hljs'
-    code.innerHTML = hljsHighlight(this.code, this.lang)
+
+    // Wrap each line in a span so CSS counters can add line numbers.
+    // hljs output is line-oriented for most languages so splitting on \n is safe.
+    const highlighted = hljsHighlight(this.code, this.lang)
+    const lines = highlighted.split('\n')
+    if (lines[lines.length - 1] === '') lines.pop()
+    code.innerHTML = lines
+      .map(line => `<span class="cm-code-line">${line || '​'}</span>`)
+      .join('')
+
     pre.appendChild(code)
     wrap.appendChild(pre)
     return wrap
@@ -203,6 +221,8 @@ class ImageWidget extends WidgetType {
     readonly src: string,
     readonly alt: string,
     readonly resolvedUrl: string,
+    /** Character offset of the `!` — used to move the cursor here on click */
+    readonly from: number,
   ) {
     super()
   }
@@ -211,9 +231,18 @@ class ImageWidget extends WidgetType {
     return other.resolvedUrl === this.resolvedUrl && other.alt === this.alt
   }
 
-  toDOM(): HTMLElement {
+  toDOM(view: EditorView): HTMLElement {
     const wrap = document.createElement('span')
     wrap.className = 'cm-rendered-image'
+
+    // Clicking the widget (image or error placeholder) moves the cursor into
+    // the image syntax so the decoration is torn down and raw markdown shows.
+    wrap.addEventListener('mousedown', (e) => {
+      e.preventDefault()
+      view.dispatch({ selection: { anchor: this.from } })
+      view.focus()
+    })
+
     const img = document.createElement('img')
     img.src = this.resolvedUrl
     img.alt = this.alt
@@ -230,6 +259,12 @@ class ImageWidget extends WidgetType {
       const filename = this.src.split('/').pop() ?? this.src
       label.textContent = `Image not found: ${filename}`
       label.title = this.src
+      // Re-attach click handler after innerHTML reset
+      wrap.addEventListener('mousedown', (e) => {
+        e.preventDefault()
+        view.dispatch({ selection: { anchor: this.from } })
+        view.focus()
+      })
       wrap.appendChild(icon)
       wrap.appendChild(label)
     }
@@ -291,7 +326,7 @@ function buildDecorations(state: EditorState): DecorationSet {
 
           deco.push(
             Decoration.replace({
-              widget: new CodeBlockWidget(lang, code),
+              widget: new CodeBlockWidget(lang, code, startLine.from),
               block: true,
             }).range(startLine.from, endLine.to),
           )
@@ -365,13 +400,22 @@ function buildDecorations(state: EditorState): DecorationSet {
           const match = text.match(/^!\[([^\]]*)\]\(([^)]*)\)$/)
           if (match) {
             const alt = match[1]
-            const src = match[2]
+            // Strip optional CommonMark title: ![alt](url "Title") or ![alt](url 'Title')
+            // match[2] contains everything inside (), including the title if present
+            const src = match[2].replace(/\s+(?:"[^"]*"|'[^']*'|\([^)]*\))\s*$/, '').trim()
             const resolvedUrl = toVaultFileUrl(noteCtx, src)
-            deco.push(
-              Decoration.replace({
-                widget: new ImageWidget(src, alt, resolvedUrl),
-              }).range(from, to),
-            )
+            const widget = new ImageWidget(src, alt, resolvedUrl, from)
+
+            // Use a block decoration when the image is the only content on its
+            // line — this fixes Up-arrow cursor jump caused by tall inline widgets.
+            const lineObj = state.doc.lineAt(from)
+            if (lineObj.text.trim() === text.trim()) {
+              deco.push(
+                Decoration.replace({ widget, block: true }).range(lineObj.from, lineObj.to),
+              )
+            } else {
+              deco.push(Decoration.replace({ widget }).range(from, to))
+            }
           }
           return false
         }
@@ -407,18 +451,41 @@ function buildDecorations(state: EditorState): DecorationSet {
   const imgRe = /!\[([^\]]*)\]\(([^)]+)\)/g
   let im: RegExpExecArray | null
   while ((im = imgRe.exec(docText)) !== null) {
-    const src = im[2]
+    // Strip optional CommonMark title before checking for spaces in the path
+    const srcRaw = im[2]
+    const src = srcRaw.replace(/\s+(?:"[^"]*"|'[^']*'|\([^)]*\))\s*$/, '').trim()
     if (!src.includes(' ')) continue                          // already handled by syntax tree
     const from = im.index
     const to   = from + im[0].length
     if (occupied.has(`${from}:${to}`)) continue               // already decorated
     if (isFocused && cursorOverlaps(state, from, to)) continue
     const resolvedUrl = toVaultFileUrl(noteCtx, src)
-    deco.push(
-      Decoration.replace({
-        widget: new ImageWidget(src, im[1], resolvedUrl),
-      }).range(from, to),
-    )
+    const widget = new ImageWidget(src, im[1], resolvedUrl, from)
+    const lineObj = state.doc.lineAt(from)
+    if (lineObj.text.trim() === im[0].trim()) {
+      deco.push(Decoration.replace({ widget, block: true }).range(lineObj.from, lineObj.to))
+    } else {
+      deco.push(Decoration.replace({ widget }).range(from, to))
+    }
+  }
+
+  // ── Regex fallback: Obsidian wiki-link image embeds ![[image.png]] ──────────
+  const wikiImgRe = /!\[\[([^\]]+\.(png|jpg|jpeg|gif|webp|svg|bmp|ico))\]\]/gi
+  let wi: RegExpExecArray | null
+  while ((wi = wikiImgRe.exec(docText)) !== null) {
+    const src  = wi[1]
+    const from = wi.index
+    const to   = from + wi[0].length
+    if (occupied.has(`${from}:${to}`)) continue
+    if (isFocused && cursorOverlaps(state, from, to)) continue
+    const resolvedUrl = toVaultFileUrl(noteCtx, src)
+    const widget = new ImageWidget(src, src.split('/').pop() ?? src, resolvedUrl, from)
+    const lineObj = state.doc.lineAt(from)
+    if (lineObj.text.trim() === wi[0].trim()) {
+      deco.push(Decoration.replace({ widget, block: true }).range(lineObj.from, lineObj.to))
+    } else {
+      deco.push(Decoration.replace({ widget }).range(from, to))
+    }
   }
 
   return Decoration.set(deco.sort((a, b) => a.from - b.from))
@@ -512,9 +579,10 @@ export const mindpalaceTheme = EditorView.theme({
     background: 'var(--vault-surface)',
     border: '1px solid var(--vault-border)',
     borderRadius: '6px',
-    padding: '12px 16px',
+    padding: '10px 0',
     margin: '6px 0',
     overflow: 'hidden',
+    counterReset: 'code-line',
   },
   '.cm-rendered-codeblock pre': {
     margin: '0',
@@ -526,7 +594,7 @@ export const mindpalaceTheme = EditorView.theme({
     overflowWrap: 'break-word',
     color: 'var(--vault-text)',
   },
-  '.cm-rendered-codeblock code': { background: 'transparent', padding: '0', border: 'none' },
+  '.cm-rendered-codeblock code': { background: 'transparent', padding: '0', border: 'none', display: 'block' },
   '.cm-codeblock-lang': {
     position: 'absolute',
     top: '7px',
@@ -536,6 +604,30 @@ export const mindpalaceTheme = EditorView.theme({
     textTransform: 'lowercase',
     letterSpacing: '0.03em',
     userSelect: 'none',
+    zIndex: '1',
+  },
+  // Line-number rows inside code blocks
+  '.cm-code-line': {
+    display: 'block',
+    paddingLeft: '3.8em',
+    paddingRight: '16px',
+    position: 'relative',
+  },
+  '.cm-code-line::before': {
+    counterIncrement: 'code-line',
+    content: 'counter(code-line)',
+    position: 'absolute',
+    left: '0',
+    width: '3em',
+    textAlign: 'right',
+    paddingRight: '0.6em',
+    color: 'var(--vault-muted)',
+    opacity: '0.4',
+    fontSize: '0.85em',
+    lineHeight: 'inherit',
+    borderRight: '1px solid var(--vault-border)',
+    userSelect: 'none',
+    pointerEvents: 'none',
   },
 
   // Inline image widget
