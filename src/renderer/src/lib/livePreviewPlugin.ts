@@ -204,6 +204,8 @@ class ImageWidget extends WidgetType {
     readonly src: string,
     readonly alt: string,
     readonly resolvedUrl: string,
+    /** Character offset of the `!` — used to move the cursor here on click */
+    readonly from: number,
   ) {
     super()
   }
@@ -212,9 +214,18 @@ class ImageWidget extends WidgetType {
     return other.resolvedUrl === this.resolvedUrl && other.alt === this.alt
   }
 
-  toDOM(): HTMLElement {
+  toDOM(view: EditorView): HTMLElement {
     const wrap = document.createElement('span')
     wrap.className = 'cm-rendered-image'
+
+    // Clicking the widget (image or error placeholder) moves the cursor into
+    // the image syntax so the decoration is torn down and raw markdown shows.
+    wrap.addEventListener('mousedown', (e) => {
+      e.preventDefault()
+      view.dispatch({ selection: { anchor: this.from } })
+      view.focus()
+    })
+
     const img = document.createElement('img')
     img.src = this.resolvedUrl
     img.alt = this.alt
@@ -231,6 +242,12 @@ class ImageWidget extends WidgetType {
       const filename = this.src.split('/').pop() ?? this.src
       label.textContent = `Image not found: ${filename}`
       label.title = this.src
+      // Re-attach click handler after innerHTML reset
+      wrap.addEventListener('mousedown', (e) => {
+        e.preventDefault()
+        view.dispatch({ selection: { anchor: this.from } })
+        view.focus()
+      })
       wrap.appendChild(icon)
       wrap.appendChild(label)
     }
@@ -370,11 +387,18 @@ function buildDecorations(state: EditorState): DecorationSet {
             // match[2] contains everything inside (), including the title if present
             const src = match[2].replace(/\s+(?:"[^"]*"|'[^']*'|\([^)]*\))\s*$/, '').trim()
             const resolvedUrl = toVaultFileUrl(noteCtx, src)
-            deco.push(
-              Decoration.replace({
-                widget: new ImageWidget(src, alt, resolvedUrl),
-              }).range(from, to),
-            )
+            const widget = new ImageWidget(src, alt, resolvedUrl, from)
+
+            // Use a block decoration when the image is the only content on its
+            // line — this fixes Up-arrow cursor jump caused by tall inline widgets.
+            const lineObj = state.doc.lineAt(from)
+            if (lineObj.text.trim() === text.trim()) {
+              deco.push(
+                Decoration.replace({ widget, block: true }).range(lineObj.from, lineObj.to),
+              )
+            } else {
+              deco.push(Decoration.replace({ widget }).range(from, to))
+            }
           }
           return false
         }
@@ -419,11 +443,13 @@ function buildDecorations(state: EditorState): DecorationSet {
     if (occupied.has(`${from}:${to}`)) continue               // already decorated
     if (isFocused && cursorOverlaps(state, from, to)) continue
     const resolvedUrl = toVaultFileUrl(noteCtx, src)
-    deco.push(
-      Decoration.replace({
-        widget: new ImageWidget(src, im[1], resolvedUrl),
-      }).range(from, to),
-    )
+    const widget = new ImageWidget(src, im[1], resolvedUrl, from)
+    const lineObj = state.doc.lineAt(from)
+    if (lineObj.text.trim() === im[0].trim()) {
+      deco.push(Decoration.replace({ widget, block: true }).range(lineObj.from, lineObj.to))
+    } else {
+      deco.push(Decoration.replace({ widget }).range(from, to))
+    }
   }
 
   // ── Regex fallback: Obsidian wiki-link image embeds ![[image.png]] ──────────
@@ -436,11 +462,13 @@ function buildDecorations(state: EditorState): DecorationSet {
     if (occupied.has(`${from}:${to}`)) continue
     if (isFocused && cursorOverlaps(state, from, to)) continue
     const resolvedUrl = toVaultFileUrl(noteCtx, src)
-    deco.push(
-      Decoration.replace({
-        widget: new ImageWidget(src, src.split('/').pop() ?? src, resolvedUrl),
-      }).range(from, to),
-    )
+    const widget = new ImageWidget(src, src.split('/').pop() ?? src, resolvedUrl, from)
+    const lineObj = state.doc.lineAt(from)
+    if (lineObj.text.trim() === wi[0].trim()) {
+      deco.push(Decoration.replace({ widget, block: true }).range(lineObj.from, lineObj.to))
+    } else {
+      deco.push(Decoration.replace({ widget }).range(from, to))
+    }
   }
 
   return Decoration.set(deco.sort((a, b) => a.from - b.from))
