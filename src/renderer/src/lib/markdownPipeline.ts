@@ -79,6 +79,20 @@ export async function renderMarkdown(
   const result = await processor.process(preprocessImages(content))
   let html = String(result)
 
+  // Add line numbers to code blocks: wrap each line in <span class="code-line">
+  // and stamp data-language on the <pre> for the CSS language badge.
+  html = html.replace(/<pre><code([^>]*)>([\s\S]*?)<\/code><\/pre>/g, (_m, codeAttrs, content) => {
+    const langMatch = codeAttrs.match(/language-([^\s"'>]+)/)
+    const lang = langMatch ? langMatch[1] : null
+    const lines = content.split('\n')
+    if (lines[lines.length - 1] === '') lines.pop()
+    const wrapped = lines
+      .map(line => `<span class="code-line">${line || '​'}</span>`)
+      .join('\n')
+    const langAttr = lang ? ` data-language="${lang}"` : ''
+    return `<pre${langAttr}><code${codeAttrs}>${wrapped}</code></pre>`
+  })
+
   // Rewrite relative image src attributes to vault-file:// URLs so Electron
   // can load images from disk without relaxing webSecurity.
   if (ctx?.vaultPath) {
