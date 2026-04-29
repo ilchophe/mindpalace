@@ -55,10 +55,18 @@ function preprocessImages(content: string): string {
     return `![${src}](${encodeSrc(src)})`
   })
 
-  // 2. Standard markdown images whose src contains spaces — remark drops these
+  // 2. Standard markdown images whose src contains spaces — remark drops these.
+  //    Skip external URLs (remark handles them + their optional "title" suffix fine).
+  //    For local paths, strip any trailing "title" or 'title' before encoding.
   content = content.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (match, alt: string, src: string) => {
     if (!src.includes(' ')) return match
-    return `![${alt}](${encodeSrc(src)})`
+    if (src.startsWith('http://') || src.startsWith('https://')) return match
+    // Separate path from optional title: `path/to/img.png "Title"` or `path 'Title'`
+    const titleMatch = src.match(/^([\s\S]*?)\s+(?:"[^"]*"|'[^']*')\s*$/)
+    const path   = titleMatch ? titleMatch[1] : src
+    const suffix = src.slice(path.length)          // title part, preserved verbatim
+    if (!path.includes(' ')) return match           // only title had spaces — remark is fine
+    return `![${alt}](${encodeSrc(path)}${suffix})`
   })
 
   return content
