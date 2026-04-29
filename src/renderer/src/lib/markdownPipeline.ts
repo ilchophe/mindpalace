@@ -88,7 +88,7 @@ export async function renderMarkdown(
     if (lines[lines.length - 1] === '') lines.pop()
     const wrapped = lines
       .map(line => `<span class="code-line">${line || '​'}</span>`)
-      .join('\n')
+      .join('')
     const langAttr = lang ? ` data-language="${lang}"` : ''
     return `<pre${langAttr}><code${codeAttrs}>${wrapped}</code></pre>`
   })

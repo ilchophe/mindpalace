@@ -343,16 +343,6 @@ code.hljs     { padding: 0; }
   position: relative;
   padding-left: 3.8em;
   padding-right: 1em;
-  min-height: 1.55em;
-  /* Indent guide: subtle vertical stripe every 2ch from code-content start */
-  background-image: repeating-linear-gradient(
-    to right,
-    transparent 0,
-    transparent calc(2ch - 1px),
-    rgba(255, 255, 255, 0.04) calc(2ch - 1px),
-    rgba(255, 255, 255, 0.04) 2ch
-  );
-  background-position: 3.8em 0;
 }
 
 .markdown-preview .code-line::before {
@@ -372,16 +362,6 @@ code.hljs     { padding: 0; }
   pointer-events: none;
 }
 
-/* Light theme — darken the indent guide lines */
-.light .markdown-preview .code-line {
-  background-image: repeating-linear-gradient(
-    to right,
-    transparent 0,
-    transparent calc(2ch - 1px),
-    rgba(0, 0, 0, 0.055) calc(2ch - 1px),
-    rgba(0, 0, 0, 0.055) 2ch
-  );
-}
 
 .markdown-preview table {
   border-collapse: collapse;

@@ -192,7 +192,7 @@ class CodeBlockWidget extends WidgetType {
     if (lines[lines.length - 1] === '') lines.pop()
     code.innerHTML = lines
       .map(line => `<span class="cm-code-line">${line || '​'}</span>`)
-      .join('\n')
+      .join('')
 
     pre.appendChild(code)
     wrap.appendChild(pre)
@@ -611,10 +611,7 @@ export const mindpalaceTheme = EditorView.theme({
     display: 'block',
     paddingLeft: '3.8em',
     paddingRight: '16px',
-    minHeight: '1.55em',
     position: 'relative',
-    backgroundImage: 'repeating-linear-gradient(to right, transparent 0, transparent calc(2ch - 1px), rgba(255,255,255,0.035) calc(2ch - 1px), rgba(255,255,255,0.035) 2ch)',
-    backgroundPosition: '3.8em 0',
   },
   '.cm-code-line::before': {
     counterIncrement: 'code-line',
