@@ -45,6 +45,7 @@ publish:
   provider: github
   owner: ilchophe
   repo: mindpalace
+  releaseType: release
 
 nsis:
   oneClick: false
