@@ -74,7 +74,7 @@
     "png-to-ico": "^3.0.1",
     "postcss": "^8.4.35",
     "prettier": "^3.2.5",
-    "sharp": "^0.34.5",
+    "sharp": "^0.35.0",
     "tailwindcss": "^4.2.4",
     "typescript": "^6.0.3",
     "vite": "^7.3.2",
